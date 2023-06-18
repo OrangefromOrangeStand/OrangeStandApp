@@ -1,5 +1,5 @@
-import { ethers, network } from 'hardhat';
-import { use, expect } from 'chai';
+import { ethers } from 'hardhat';
+import { expect } from 'chai';
 import { Contract } from 'ethers';
 
 describe('Bid contract', function () {
@@ -15,14 +15,12 @@ describe('Bid contract', function () {
         if (contractAddress) {
             it('Should connect to external contract', async function () {
                 bid = await ethers.getContractAt('Bid', contractAddress);
-                console.log('     🛰 Connected to external contract', bid.address);
+                console.log('Connected to external contract', bid.address);
             });
         } else {
             it('Should deploy Bid', async function () {
                 const Bid = await ethers.getContractFactory('Bid');
-
                 const [owner] = await ethers.getSigners();
-
                 bid = await Bid.deploy(owner.address, startTime, itemAddress, bidPrice);
             });
         }
@@ -30,9 +28,7 @@ describe('Bid contract', function () {
         describe('getBidderAddress()', function () {
             it('Get the bidder`s address', async function () {
                 const [owner] = await ethers.getSigners();
-
                 console.log('\t', 'Tester Address: ', owner.address);
-
                 var result = await bid.getBidderAddress();
                 console.log('\t', 'Checking setter worked: ', result);
                 expect(await result).to.equal(owner.address);
@@ -41,10 +37,7 @@ describe('Bid contract', function () {
 
         describe('getStartTime()', function () {
             it('Get the correct starting time', async function () {
-                const [owner] = await ethers.getSigners();
-
                 console.log('\t', 'Expected starting time: ', startTime);
-
                 var result = await bid.getStartTime();
                 expect(result).to.equal(startTime);
             })
@@ -53,7 +46,6 @@ describe('Bid contract', function () {
         describe('getItemAddress()', function () {
             it('Get the correct item address', async function () {
                 console.log('\t', 'Expected address: ', itemAddress);
-
                 var result = await bid.getItemAddress();
                 expect(result).to.equal(itemAddress);
             })
@@ -62,7 +54,6 @@ describe('Bid contract', function () {
         describe('getBidPrice()', function () {
             it('Get the bid price', async function () {
                 console.log('\t', 'Expected bid price: ', bidPrice);
-
                 var result = await bid.getBidPrice();
                 expect(result).to.equal(bidPrice);
             })
