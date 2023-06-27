@@ -22,6 +22,7 @@ contract Auction is Ownable {
   bool private _settled;
   uint256 private _priceIncrease;
   address private _paymentToken;
+  uint256 private _activePrice;
 
   constructor(
     uint256 id,
@@ -42,6 +43,7 @@ contract Auction is Ownable {
     _settled = false;
     _priceIncrease = priceIncrease;
     _paymentToken = paymentToken;
+    _activePrice = initialPrice;
   }
 
   function getId() public view returns (uint256) {
@@ -92,6 +94,10 @@ contract Auction is Ownable {
     return _paymentToken;
   }
 
+  function getActivePrice() public view returns (uint256) {
+    return _activePrice;
+  }
+
   // anyone can call
   function makeNewBid(address newBidAddress) public onlyOwner {
     if (!isFinished()) {
@@ -100,14 +106,13 @@ contract Auction is Ownable {
       if(address(_activeBid) != address(0x0)){
         oldBidAddress = address(_activeBid);
         oldBidder = Bid(_activeBid).getBidderAddress();
+        _activePrice += _priceIncrease;
       }
       _activeBid = Bid(newBidAddress);
-
       IERC20 paymentContract = IERC20(_paymentToken);
       paymentContract.transferFrom(_activeBid.getBidderAddress(), address(this), getPriceIncrease());
-
       _currentCycleStartTime = block.timestamp;
-      emit BidUpdate(_id, newBidAddress, oldBidAddress,_activeBid.getBidderAddress(), oldBidder);
+      emit BidUpdate(_id, newBidAddress, oldBidAddress, _activeBid.getBidderAddress(), oldBidder);
     }
   }
 
@@ -123,7 +128,7 @@ contract Auction is Ownable {
       uint256 finalBidPrice = 0;
       if(address(finalBid) != address(0x0)){
         bidderAddress = finalBid.getBidderAddress();
-        finalBidPrice = finalBid.getBidPrice();
+        finalBidPrice = _activePrice;
       }
       emit AuctionSettled(_id, bidderAddress, finalBidPrice);
     }
