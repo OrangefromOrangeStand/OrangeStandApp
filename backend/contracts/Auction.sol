@@ -10,6 +10,8 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 contract Auction is Ownable {
   event BidUpdate(uint256 _id, address _newBid, address _oldBid, address _newBidder, address _oldBidder);
   event AuctionSettled(uint256 _id, address _bidder, uint256 _finalPrice);
+  event AuctionOnGoing(uint256 _id);
+  event AuctionFinished(uint256 _id);
 
   uint256 private _id;
   Bid private _activeBid;
@@ -98,7 +100,6 @@ contract Auction is Ownable {
     return _activePrice;
   }
 
-  // anyone can call
   function makeNewBid(address newBidAddress) public onlyOwner {
     if (!isFinished()) {
       address oldBidAddress;
@@ -113,16 +114,21 @@ contract Auction is Ownable {
       paymentContract.transferFrom(_activeBid.getBidderAddress(), address(this), getPriceIncrease());
       _currentCycleStartTime = block.timestamp;
       emit BidUpdate(_id, newBidAddress, oldBidAddress, _activeBid.getBidderAddress(), oldBidder);
+    } else {
+      emit AuctionFinished(_id);
     }
   }
 
   function settle() public onlyOwner {
-    if(!_settled && isFinished()) {
-      _settled = true;
-      IERC20 paymentContract = IERC20(_paymentToken);
-      uint256 balance = paymentContract.balanceOf(address(this));
-      paymentContract.transfer(getOriginalOwner(), balance);
-
+    if(!isFinished()){
+      emit AuctionOnGoing(_id);
+    } else {
+      if(!_settled){
+        _settled = true;
+        IERC20 paymentContract = IERC20(_paymentToken);
+        uint256 balance = paymentContract.balanceOf(address(this));
+        paymentContract.transfer(getOriginalOwner(), balance);
+      }
       Bid finalBid = Bid(_activeBid);
       address bidderAddress = getOriginalOwner();
       uint256 finalBidPrice = 0;
