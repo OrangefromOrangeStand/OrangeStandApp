@@ -1,6 +1,7 @@
 import { ethers, network } from 'hardhat';
 import { use, expect } from 'chai';
 import { Contract } from 'ethers';
+const { mine } = require("@nomicfoundation/hardhat-network-helpers");
 
 describe('AuctionCoordinator tests', function () {
     this.timeout(180000);
@@ -104,6 +105,54 @@ describe('AuctionCoordinator tests', function () {
                 var retrievedAuction = await Auction.attach(await auctionCoordinator.getAuction(auctionId));
 
                 expect(await retrievedAuction.getOriginalOwner()).to.equal(originalOwnerAddress);
+            })
+        });
+
+        describe('settleAuction()', function () {
+            it('Get the correct active item', async function () {
+                const AuctionCoordinator = await ethers.getContractFactory('AuctionCoordinator');
+                auctionCoordinator = await AuctionCoordinator.deploy(await orangeStandTicket.getAddress());
+
+                const Item = await ethers.getContractFactory('Item');
+                var item = await Item.deploy()
+                const SingleErc721Item = await ethers.getContractFactory('SingleErc721Item');
+                var tokenNum = 1;
+                
+
+                const LocalCollectible = await ethers.getContractFactory('LocalCollectible');
+                var auctionNft = await LocalCollectible.deploy();
+                const tokenId = 1;
+                const originalOwnerAddress = '0xD336C41f8b1494a7289D39d8De4aADB3792d8515';
+                const bidPrice = 10;
+
+                const itemAddress = await auctionNft.getAddress();
+                const [owner] = await ethers.getSigners();
+                await auctionNft.mintItem(await auctionCoordinator.getAddress(), 'QmfVMAmNM1kDEBYrC2TPzQDoCRFH6F5tE1e9Mr4FkkR5Xr');
+
+                await item.addErc721(itemAddress, tokenNum);
+                await auctionCoordinator.setUpAuction(await item.getAddress(), originalOwnerAddress, 30, 
+                    biddingPrice, orangeStandTicket, bidPrice);
+                const Auction = await ethers.getContractFactory('Auction');
+
+                var auctionId = 1;
+
+                var retrievedAuctionItem = await Auction.attach(await auctionCoordinator.getAuction(auctionId));
+                var auctionStatusBeforeClosing = await retrievedAuctionItem.isFinished();
+
+                var auctionAddress = await auctionCoordinator.getAuction(auctionId);
+                await orangeStandTicket.connect(owner).approve(auctionAddress, bidPrice);
+                await orangeStandTicket.mint(owner.address, bidPrice);
+
+                await auctionCoordinator.makeBid(auctionId, owner.address);
+
+                await mine(1000);
+                await auctionCoordinator.settleAuction(auctionId);
+                await mine(1000);
+
+                var auctionStatusAfterClosing = await retrievedAuctionItem.isFinished();
+
+                expect(auctionStatusBeforeClosing).to.equal(false);
+                expect(auctionStatusAfterClosing).to.equal(true);
             })
         });
     });
