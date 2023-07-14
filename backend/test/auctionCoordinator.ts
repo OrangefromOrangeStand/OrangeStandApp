@@ -64,5 +64,47 @@ describe('AuctionCoordinator tests', function () {
                 expect(await activeBid.getBidderAddress()).to.equal(secondBidder);
             })
         });
+
+        describe('getActiveAuction()', function () {
+            it('Get the correct active item', async function () {
+                const AuctionCoordinator = await ethers.getContractFactory('AuctionCoordinator');
+                auctionCoordinator = await AuctionCoordinator.deploy(await orangeStandTicket.getAddress());
+
+                const itemAddress = '0xE5C1E03225Af47391E51b79D6D149987cde5B222';
+                const tokenId = 7;
+                const bidPrice = 8;
+                const originalOwnerAddress = '0xD336C41f8b1494a7289D39d8De4aADB3792d8515';
+
+                await auctionCoordinator.setUpAuction(itemAddress, originalOwnerAddress, 30, 
+                    biddingPrice, orangeStandTicket, bidPrice);
+
+                const Auction = await ethers.getContractFactory('Auction');
+                var auctionId = 1;
+                var retrievedAuction = await Auction.attach(await auctionCoordinator.getAuction(auctionId));
+
+                expect(await retrievedAuction.getItem()).to.equal(itemAddress);
+            })
+        });
+
+        describe('getOriginalOwner()', function () {
+            it('Get the correct active item', async function () {
+                const AuctionCoordinator = await ethers.getContractFactory('AuctionCoordinator');
+                auctionCoordinator = await AuctionCoordinator.deploy(await orangeStandTicket.getAddress());
+
+                const itemAddress = '0xE5C1E03225Af47391E51b79D6D149987cde5B222';
+                const tokenId = 7;
+                const bidPrice = 9;
+                const originalOwnerAddress = '0xD336C41f8b1494a7289D39d8De4aADB3792d8515';
+
+                await auctionCoordinator.setUpAuction(itemAddress, originalOwnerAddress, 30, 
+                    biddingPrice, orangeStandTicket, bidPrice);
+                const Auction = await ethers.getContractFactory('Auction');
+
+                var auctionId = 1;
+                var retrievedAuction = await Auction.attach(await auctionCoordinator.getAuction(auctionId));
+
+                expect(await retrievedAuction.getOriginalOwner()).to.equal(originalOwnerAddress);
+            })
+        });
     });
 });
