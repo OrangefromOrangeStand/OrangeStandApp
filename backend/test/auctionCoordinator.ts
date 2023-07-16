@@ -353,7 +353,7 @@ describe('AuctionCoordinator tests', function () {
                 expect(await retrievedErc20Item.getQuantity()).to.equal(tokenAmount);
             })
 
-            it('Create a new single ERC20 auction', async function () {
+            it('Create multiple new ERC20 auctions', async function () {
                 // ARRANGE
                 await setup();
                 const [owner, addr1, addr2] = await ethers.getSigners();
@@ -395,6 +395,81 @@ describe('AuctionCoordinator tests', function () {
                 expect(await retrievedFirstAuctionErc20Item.getQuantity()).to.equal(firstAuctionTokenAmount);
                 expect(await retrievedSecondAuctionErc20Item.getTokenAddress()).to.equal(erc20Address);
                 expect(await retrievedSecondAuctionErc20Item.getQuantity()).to.equal(secondAuctionTokenAmount);
+            })
+        });
+
+        describe('getAllActiveAuctions()', function () {
+            it('Get single active auction', async function () {
+                // ARRANGE
+                await setup();
+                const [owner, addr1] = await ethers.getSigners();
+                const Auction = await ethers.getContractFactory('Auction');
+                var tokenAmount = 20;
+                const SimulationToken = await ethers.getContractFactory('SimulationToken');
+                var simToken = await SimulationToken.deploy();
+                var erc20Address = await simToken.getAddress();
+                await simToken.mint(addr1.address, tokenAmount);
+                await simToken.connect(addr1).approve(await auctionCoordinator.getAddress(), tokenAmount);
+                await auctionCoordinator.createErc20Auction(erc20Address, tokenAmount, addr1.address,
+                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice);
+                // ACT
+                var allActiveAuctionsCount = await auctionCoordinator.getAllActiveAuctions();
+                // ASSERT
+                expect(allActiveAuctionsCount.length).to.equal(1);
+            })
+            it('Get multiple active auctions', async function () {
+                // ARRANGE
+                await setup();
+                const [, addr1, addr2] = await ethers.getSigners();
+                var firstAuctionTokenAmount = 20;
+                var secondAuctionTokenAmount = 37;
+                const SimulationToken = await ethers.getContractFactory('SimulationToken');
+                var simToken = await SimulationToken.deploy();
+                var erc20Address = await simToken.getAddress();
+                await simToken.mint(addr1.address, firstAuctionTokenAmount);
+                await simToken.connect(addr1).approve(await auctionCoordinator.getAddress(), firstAuctionTokenAmount);
+                await simToken.mint(addr2.address, secondAuctionTokenAmount);
+                await simToken.connect(addr2).approve(await auctionCoordinator.getAddress(), secondAuctionTokenAmount);
+                // ACT
+                await auctionCoordinator.createErc20Auction(erc20Address, firstAuctionTokenAmount, addr1.address,
+                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice);
+                await auctionCoordinator.createErc20Auction(erc20Address, secondAuctionTokenAmount, addr2.address,
+                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice);
+                // ACT
+                var allActiveAuctionsCount = await auctionCoordinator.getAllActiveAuctions();
+                // ASSERT
+                expect(allActiveAuctionsCount.length).to.equal(2);
+            })
+            it('Get multiple active auctions where one has been settled', async function () {
+                // ARRANGE
+                await setup();
+                const [, addr1, addr2, addr3] = await ethers.getSigners();
+                var firstAuctionTokenAmount = 20;
+                var secondAuctionTokenAmount = 37;
+                var thirdAuctionTokenAmount = 14;
+                const SimulationToken = await ethers.getContractFactory('SimulationToken');
+                var simToken = await SimulationToken.deploy();
+                var erc20Address = await simToken.getAddress();
+                await simToken.mint(addr1.address, firstAuctionTokenAmount);
+                await simToken.connect(addr1).approve(await auctionCoordinator.getAddress(), firstAuctionTokenAmount);
+                await simToken.mint(addr2.address, secondAuctionTokenAmount);
+                await simToken.connect(addr2).approve(await auctionCoordinator.getAddress(), secondAuctionTokenAmount);
+                await simToken.mint(addr3.address, thirdAuctionTokenAmount);
+                await simToken.connect(addr3).approve(await auctionCoordinator.getAddress(), thirdAuctionTokenAmount);
+                // ACT
+                await auctionCoordinator.createErc20Auction(erc20Address, firstAuctionTokenAmount, addr1.address,
+                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice);
+                await auctionCoordinator.createErc20Auction(erc20Address, secondAuctionTokenAmount, addr2.address,
+                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice);
+                await auctionCoordinator.createErc20Auction(erc20Address, thirdAuctionTokenAmount, addr3.address,
+                        bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice);
+                // ACT
+                var allActiveAuctionsCountBeforeSettlement = await auctionCoordinator.getAllActiveAuctions();
+                await auctionCoordinator.connect(addr1).settleAuction(1);
+                var allActiveAuctionsCountAfterSettlement = await auctionCoordinator.getAllActiveAuctions();
+                // ASSERT
+                expect(allActiveAuctionsCountBeforeSettlement.length).to.equal(3);
+                expect(allActiveAuctionsCountAfterSettlement.length).to.equal(2);
             })
         });
 
