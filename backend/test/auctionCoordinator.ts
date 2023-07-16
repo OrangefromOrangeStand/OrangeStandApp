@@ -92,6 +92,42 @@ describe('AuctionCoordinator tests', function () {
             })
         });
 
+        describe('setUpAuction()', function () {
+            it('Set up auction with single bid made', async function () {
+                // ARRANGE
+                await setup();
+                const Auction = await ethers.getContractFactory('Auction');
+                var auctionId = 1;
+                // ACT
+                await auctionCoordinator.setUpAuction(itemAddress, originalOwnerAddress, bidTimeInMinutes, 
+                    biddingPrice, orangeStandTicket, bidPrice);
+                // ASSERT
+                var retrievedActiveAuction = await Auction.attach(await auctionCoordinator.getAuction(auctionId));
+                var retrievedItemAddress = await retrievedActiveAuction.getItem();
+                expect(retrievedItemAddress).to.equal(itemAddress);
+            })
+            it('Set up auction with multiple bids made', async function () {
+                // ARRANGE
+                await setup();
+                const Auction = await ethers.getContractFactory('Auction');
+                const secondItemAddress = '0xD336C41f8b1494a7289D39d8De4aADB3792d8515';
+                var firstAuctionId = 1;
+                var secondAuctionId = 2;
+                // ACT
+                await auctionCoordinator.setUpAuction(itemAddress, originalOwnerAddress, bidTimeInMinutes, 
+                    biddingPrice, orangeStandTicket, bidPrice);
+                await auctionCoordinator.setUpAuction(secondItemAddress, originalOwnerAddress, bidTimeInMinutes, 
+                    biddingPrice, orangeStandTicket, bidPrice);
+                // ASSERT
+                var firstRetrievedActiveAuction = await Auction.attach(await auctionCoordinator.getAuction(firstAuctionId));
+                var secondRetrievedActiveAuction = await Auction.attach(await auctionCoordinator.getAuction(secondAuctionId));
+                var firstRetrievedItemAddress = await firstRetrievedActiveAuction.getItem();
+                var secondRetrievedItemAddress = await secondRetrievedActiveAuction.getItem();
+                expect(firstRetrievedItemAddress).to.equal(itemAddress);
+                expect(secondRetrievedItemAddress).to.equal(secondItemAddress);
+            })
+        });
+
         describe('getActiveAuction()', function () {
             it('Get the correct active item when single auction exists', async function () {
                 // ARRANGE
@@ -172,7 +208,7 @@ describe('AuctionCoordinator tests', function () {
                 expect(await retrievedErc721Item.getTokenAddress()).to.equal(erc721ItemAddress);
             })
 
-            it('Create a new single ERC721 auction', async function () {
+            it('Create multiple ERC721 auctions', async function () {
                 // ARRANGE
                 await setup();
                 const [owner, addr1, addr2] = await ethers.getSigners();
