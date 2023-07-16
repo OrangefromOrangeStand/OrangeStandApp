@@ -42,6 +42,76 @@ describe('AuctionCoordinator tests', function () {
             });
         }
 
+        describe('redeemTickets()', function () {
+            it('Redeem single ticket', async function () {
+                // ARRANGE
+                await setup();
+                const [owner, addr1] = await ethers.getSigners();
+                await orangeStandTicket.transferOwnership(await auctionCoordinator.getAddress());
+                var singleTicketCount = 1;
+                // ACT
+                var balanceBeforeTicketCreation = await orangeStandTicket.balanceOf(addr1.address);
+                await auctionCoordinator.createTickets(singleTicketCount, addr1.address);
+                var balanceAfterTicketCreation = await orangeStandTicket.balanceOf(addr1.address);
+                await auctionCoordinator.redeemTickets(singleTicketCount, addr1.address);
+                var balanceAfterRedemption = await orangeStandTicket.balanceOf(addr1.address);
+                // ASSERT
+                expect(balanceBeforeTicketCreation).to.equal(0);
+                expect(balanceAfterTicketCreation).to.equal(singleTicketCount);
+                expect(balanceAfterRedemption).to.equal(0);
+            })
+
+            it('Redeem multiple tickets', async function () {
+                // ARRANGE
+                await setup();
+                const [owner, addr1] = await ethers.getSigners();
+                await orangeStandTicket.transferOwnership(await auctionCoordinator.getAddress());
+                var singleTicketCount = 6;
+                // ACT
+                var balanceBeforeTicketCreation = await orangeStandTicket.balanceOf(addr1.address);
+                await auctionCoordinator.createTickets(singleTicketCount, addr1.address);
+                var balanceAfterTicketCreation = await orangeStandTicket.balanceOf(addr1.address);
+                await auctionCoordinator.redeemTickets(singleTicketCount, addr1.address);
+                var balanceAfterRedemption = await orangeStandTicket.balanceOf(addr1.address);
+                // ASSERT
+                expect(balanceBeforeTicketCreation).to.equal(0);
+                expect(balanceAfterTicketCreation).to.equal(singleTicketCount);
+                expect(balanceAfterRedemption).to.equal(0);
+            })
+        })
+
+        describe('createTickets()', function () {
+            it('Create single ticket', async function () {
+                // ARRANGE
+                await setup();
+                const [owner, addr1] = await ethers.getSigners();
+                await orangeStandTicket.transferOwnership(await auctionCoordinator.getAddress());
+                var singleTicketCount = 1;
+                // ACT
+                var balanceBeforeTicketCreation = await orangeStandTicket.balanceOf(addr1.address);
+                await auctionCoordinator.createTickets(singleTicketCount, addr1.address);
+                var balanceAfterTicketCreation = await orangeStandTicket.balanceOf(addr1.address);
+                // ASSERT
+                expect(balanceBeforeTicketCreation).to.equal(0);
+                expect(balanceAfterTicketCreation).to.equal(singleTicketCount);
+            })
+
+            it('Create multiple tickets', async function () {
+                // ARRANGE
+                await setup();
+                const [owner, addr1] = await ethers.getSigners();
+                await orangeStandTicket.transferOwnership(await auctionCoordinator.getAddress());
+                var singleTicketCount = 7;
+                // ACT
+                var balanceBeforeTicketCreation = await orangeStandTicket.balanceOf(addr1.address);
+                await auctionCoordinator.createTickets(singleTicketCount, addr1.address);
+                var balanceAfterTicketCreation = await orangeStandTicket.balanceOf(addr1.address);
+                // ASSERT
+                expect(balanceBeforeTicketCreation).to.equal(0);
+                expect(balanceAfterTicketCreation).to.equal(singleTicketCount);
+            })
+        });
+
         describe('getActiveBid()', function () {
             it('Get the correct active bid with multiple bids made', async function () {
                 // ARRANGE
