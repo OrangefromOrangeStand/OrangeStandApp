@@ -473,7 +473,7 @@ describe('AuctionCoordinator tests', function () {
             })
         });
 
-        describe('makeBid()', function () {});
+        describe('makeBid()', function () {
             it('Finished auction shouldnt be biddable', async function () {
                 // ARRANGE
                 await setup();
@@ -570,7 +570,37 @@ describe('AuctionCoordinator tests', function () {
                 var activeBid = await Bid.attach(activeBidAddress);
                 expect(await activeBid.getBidderAddress()).to.equal(secondBidder);
             })
+        });
+
         describe('settleAuction()', function () {
+            it('Settle auction with no bids made', async function () {
+                // ARRANGE
+                await setup();
+                const [, addr1] = await ethers.getSigners();
+                const Auction = await ethers.getContractFactory('Auction');
+                var auctionId = 1;
+                var tokenAmount = 20;
+                var itemOwnerAddress = addr1.address;
+                const SimulationToken = await ethers.getContractFactory('SimulationToken');
+                var simToken = await SimulationToken.deploy();
+                var erc20Address = await simToken.getAddress();
+                await simToken.mint(itemOwnerAddress, tokenAmount);
+                await simToken.connect(addr1).approve(await auctionCoordinator.getAddress(), tokenAmount);
+                await auctionCoordinator.createErc20Auction(erc20Address, tokenAmount, itemOwnerAddress,
+                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice);
+                var auctionAddress = await auctionCoordinator.getAuction(auctionId);
+                var auction = await Auction.attach(auctionAddress);
+                await mine(1000);
+                // ACT
+                var balanceForOwnerBeforeSettlement = await simToken.balanceOf(itemOwnerAddress);
+                await expect(auctionCoordinator.connect(addr1).settleAuction(auctionId))
+                    .to.emit(auction, "AuctionSettled")
+                    .withArgs(auctionId, String, 0);
+                var balanceForOwnerAfterSettlement = await simToken.balanceOf(itemOwnerAddress);
+                // ASSERT
+                expect(balanceForOwnerBeforeSettlement).to.equal(0);
+                expect(balanceForOwnerAfterSettlement).to.equal(tokenAmount);
+            })
             it('Settle auction with single bid', async function () {
                 // ARRANGE
                 await setup();
@@ -698,6 +728,56 @@ describe('AuctionCoordinator tests', function () {
                 // ASSERT
                 expect(balanceForFinalBidderBeforeSettlement).to.equal(0);
                 expect(balanceForFinalBidderAfterSettlement).to.equal(tokenAmount);
+            })
+            it('Settle multiple auctions', async function () {
+                // ARRANGE
+                await setup();
+                const [owner, addr1, addr2] = await ethers.getSigners();
+                const Auction = await ethers.getContractFactory('Auction');
+                var firstAuctionId = 1;
+                var secondAuctionId = 2;
+                var firstAuctionTokenAmount = 20;
+                var secondAuctionTokenAmount = 13;
+                const firstBidder = addr2.address;
+                const secondBidder = addr1.address;
+                const SimulationToken = await ethers.getContractFactory('SimulationToken');
+                var simToken = await SimulationToken.deploy();
+                var erc20Address = await simToken.getAddress();
+                await simToken.mint(addr1.address, firstAuctionTokenAmount);
+                await simToken.connect(addr1).approve(await auctionCoordinator.getAddress(), firstAuctionTokenAmount);
+                await simToken.mint(addr2.address, secondAuctionTokenAmount);
+                await simToken.connect(addr2).approve(await auctionCoordinator.getAddress(), secondAuctionTokenAmount);
+                await auctionCoordinator.createErc20Auction(erc20Address, firstAuctionTokenAmount, addr1.address,
+                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice);
+                await auctionCoordinator.createErc20Auction(erc20Address, secondAuctionTokenAmount, addr2.address,
+                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice);
+                var firstAuctionAddress = await auctionCoordinator.getAuction(firstAuctionId);
+                var secondAuctionAddress = await auctionCoordinator.getAuction(secondAuctionId);
+                var firstAuction = await Auction.attach(firstAuctionAddress);
+                var secondAuction = await Auction.attach(secondAuctionAddress);
+                await orangeStandTicket.connect(addr2).approve(firstAuctionAddress, bidPrice);
+                await orangeStandTicket.mint(firstBidder, bidPrice);
+                await orangeStandTicket.connect(addr1).approve(secondAuctionAddress, bidPrice);
+                await orangeStandTicket.mint(secondBidder, bidPrice);
+                await auctionCoordinator.makeBid(firstAuctionId, firstBidder);
+                await auctionCoordinator.makeBid(secondAuctionId, secondBidder);
+                await mine(1000);
+                // ACT
+                var balanceForFinalBidderOfFirstAuctionBeforeSettlement = await simToken.balanceOf(firstBidder);
+                await expect(auctionCoordinator.connect(addr2).settleAuction(firstAuctionId))
+                    .to.emit(firstAuction, "AuctionSettled")
+                    .withArgs(firstAuctionId, firstBidder, biddingPrice);
+                var balanceForFinalBidderOfFirstAuctionAfterSettlement = await simToken.balanceOf(firstBidder);
+                var balanceForFinalBidderOfSecondAuctionBeforeSettlement = await simToken.balanceOf(secondBidder);
+                await expect(auctionCoordinator.connect(addr1).settleAuction(secondAuctionId))
+                    .to.emit(secondAuction, "AuctionSettled")
+                    .withArgs(secondAuctionId, secondBidder, biddingPrice);
+                var balanceForFinalBidderOfSecondAuctionAfterSettlement = await simToken.balanceOf(secondBidder);
+                // ASSERT
+                expect(balanceForFinalBidderOfFirstAuctionBeforeSettlement).to.equal(0);
+                expect(balanceForFinalBidderOfFirstAuctionAfterSettlement).to.equal(firstAuctionTokenAmount);
+                expect(balanceForFinalBidderOfSecondAuctionBeforeSettlement).to.equal(0);
+                expect(balanceForFinalBidderOfSecondAuctionAfterSettlement).to.equal(secondAuctionTokenAmount);
             })
             it('Settle auction with ERC20 auction', async function () {
                 // ARRANGE
