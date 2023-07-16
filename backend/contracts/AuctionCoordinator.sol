@@ -88,6 +88,7 @@ contract AuctionCoordinator is AccessControl {
     uint256 bidCost
   ) public {
     Item newItem = new Item();
+    IERC20(erc20Address).transferFrom(address(originalOwner), address(this), amount);
     newItem.addErc20(erc20Address, amount);
     uint256 auctionId = setUpAuction(address(newItem), originalOwner, auctionSpeed, initialBidPrice, paymentToken, bidCost);
     emit Erc20AuctionCreation(auctionId,erc20Address,originalOwner,amount, block.number);

@@ -398,52 +398,294 @@ describe('AuctionCoordinator tests', function () {
             })
         });
 
+        describe('makeBid()', function () {});
+            it('Finished auction shouldnt be biddable', async function () {
+                // ARRANGE
+                await setup();
+                const [owner, addr1, addr2, addr3] = await ethers.getSigners();
+                const Auction = await ethers.getContractFactory('Auction');
+                var auctionId = 1;
+                var tokenAmount = 20;
+                const firstBidder = addr2.address;
+                const secondBidder = addr3.address;
+                const SimulationToken = await ethers.getContractFactory('SimulationToken');
+                var simToken = await SimulationToken.deploy();
+                var erc20Address = await simToken.getAddress();
+                await simToken.mint(addr1.address, tokenAmount);
+                await simToken.connect(addr1).approve(await auctionCoordinator.getAddress(), tokenAmount);
+                await auctionCoordinator.createErc20Auction(erc20Address, tokenAmount, addr1.address,
+                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice);
+                var auctionAddress = await auctionCoordinator.getAuction(auctionId);
+                var auction = await Auction.attach(auctionAddress);
+                await orangeStandTicket.connect(addr2).approve(auctionAddress, bidPrice);
+                await orangeStandTicket.mint(firstBidder, bidPrice);
+                await orangeStandTicket.connect(addr3).approve(auctionAddress, bidPrice);
+                await orangeStandTicket.mint(secondBidder, bidPrice);
+                // ACT
+                await auctionCoordinator.makeBid(auctionId, firstBidder);
+                await mine(1000);
+                // ASSERT
+                await expect(auctionCoordinator.makeBid(auctionId, secondBidder))
+                    .to.emit(auction, "AuctionFinished")
+                    .withArgs(auctionId);
+            })
+            it('Settled auction shouldnt be biddable', async function () {
+                // ARRANGE
+                await setup();
+                const [owner, addr1, addr2, addr3] = await ethers.getSigners();
+                const Auction = await ethers.getContractFactory('Auction');
+                var auctionId = 1;
+                var tokenAmount = 20;
+                const firstBidder = addr2.address;
+                const secondBidder = addr3.address;
+                const SimulationToken = await ethers.getContractFactory('SimulationToken');
+                var simToken = await SimulationToken.deploy();
+                var erc20Address = await simToken.getAddress();
+                await simToken.mint(addr1.address, tokenAmount);
+                await simToken.connect(addr1).approve(await auctionCoordinator.getAddress(), tokenAmount);
+                await auctionCoordinator.createErc20Auction(erc20Address, tokenAmount, addr1.address,
+                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice);
+                var auctionAddress = await auctionCoordinator.getAuction(auctionId);
+                var auction = await Auction.attach(auctionAddress);
+                await orangeStandTicket.connect(addr2).approve(auctionAddress, bidPrice);
+                await orangeStandTicket.mint(firstBidder, bidPrice);
+                await orangeStandTicket.connect(addr3).approve(auctionAddress, bidPrice);
+                await orangeStandTicket.mint(secondBidder, bidPrice);
+                // ACT
+                await auctionCoordinator.makeBid(auctionId, firstBidder);
+                await mine(1000);
+                await auctionCoordinator.connect(addr2).settleAuction(auctionId)
+                // ASSERT
+                await expect(auctionCoordinator.makeBid(auctionId, secondBidder))
+                    .to.emit(auction, "AuctionFinished")
+                    .withArgs(auctionId);
+            })
+            it('Running auction should be biddable', async function () {
+                // ARRANGE
+                await setup();
+                const [owner, addr1, addr2, addr3] = await ethers.getSigners();
+                const Auction = await ethers.getContractFactory('Auction');
+                var auctionId = 1;
+                var tokenAmount = 20;
+                const firstBidder = addr2.address;
+                const secondBidder = addr3.address;
+                const SimulationToken = await ethers.getContractFactory('SimulationToken');
+                const Bid = await ethers.getContractFactory('Bid');
+                var simToken = await SimulationToken.deploy();
+                var erc20Address = await simToken.getAddress();
+                await simToken.mint(addr1.address, tokenAmount);
+                await simToken.connect(addr1).approve(await auctionCoordinator.getAddress(), tokenAmount);
+                await auctionCoordinator.createErc20Auction(erc20Address, tokenAmount, addr1.address,
+                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice);
+                var auctionAddress = await auctionCoordinator.getAuction(auctionId);
+                var auction = await Auction.attach(auctionAddress);
+                await orangeStandTicket.connect(addr2).approve(auctionAddress, bidPrice);
+                await orangeStandTicket.mint(firstBidder, bidPrice);
+                await orangeStandTicket.connect(addr3).approve(auctionAddress, bidPrice);
+                await orangeStandTicket.mint(secondBidder, bidPrice);
+                // ACT
+                await expect(auctionCoordinator.connect(addr2).makeBid(auctionId, firstBidder))
+                    .to.emit(auction, "BidUpdate")
+                    .withArgs(auctionId, String, String, firstBidder, String);
+                await expect(auctionCoordinator.connect(addr3).makeBid(auctionId, secondBidder))
+                    .to.emit(auction, "BidUpdate")
+                    .withArgs(auctionId, String, String, secondBidder, firstBidder);
+                // ASSERT
+                var activeBidAddress = await auction.getActiveBid();
+                var activeBid = await Bid.attach(activeBidAddress);
+                expect(await activeBid.getBidderAddress()).to.equal(secondBidder);
+            })
         describe('settleAuction()', function () {
-            it('Get the correct active item', async function () {
-                await setup()
-                const AuctionCoordinator = await ethers.getContractFactory('AuctionCoordinator');
-                auctionCoordinator = await AuctionCoordinator.deploy(await orangeStandTicket.getAddress());
-
-                const Item = await ethers.getContractFactory('Item');
-                var item = await Item.deploy()
-                const SingleErc721Item = await ethers.getContractFactory('SingleErc721Item');
-                var tokenNum = 1;
-                
-
+            it('Settle auction with single bid', async function () {
+                // ARRANGE
+                await setup();
+                const [owner, addr1, addr2] = await ethers.getSigners();
+                const Auction = await ethers.getContractFactory('Auction');
+                var auctionId = 1;
+                var tokenAmount = 20;
+                const bidder = addr2.address;
+                const SimulationToken = await ethers.getContractFactory('SimulationToken');
+                var simToken = await SimulationToken.deploy();
+                var erc20Address = await simToken.getAddress();
+                await simToken.mint(addr1.address, tokenAmount);
+                await simToken.connect(addr1).approve(await auctionCoordinator.getAddress(), tokenAmount);
+                await auctionCoordinator.createErc20Auction(erc20Address, tokenAmount, addr1.address,
+                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice);
+                var auctionAddress = await auctionCoordinator.getAuction(auctionId);
+                var auction = await Auction.attach(auctionAddress);
+                await orangeStandTicket.connect(addr2).approve(auctionAddress, bidPrice);
+                await orangeStandTicket.mint(bidder, bidPrice);
+                await auctionCoordinator.makeBid(auctionId, bidder);
+                await mine(1000);
+                // ACT
+                var balanceForFinalBidderBeforeSettlement = await simToken.balanceOf(bidder);
+                await expect(auctionCoordinator.connect(addr2).settleAuction(auctionId))
+                    .to.emit(auction, "AuctionSettled")
+                    .withArgs(auctionId, bidder, biddingPrice);
+                var balanceForFinalBidderAfterSettlement = await simToken.balanceOf(bidder);
+                // ASSERT
+                expect(balanceForFinalBidderBeforeSettlement).to.equal(0);
+                expect(balanceForFinalBidderAfterSettlement).to.equal(tokenAmount);
+            })
+            it('Original owner can settle auction', async function () {
+                // ARRANGE
+                await setup();
+                const [owner, addr1, addr2] = await ethers.getSigners();
+                const Auction = await ethers.getContractFactory('Auction');
+                var auctionId = 1;
+                var tokenAmount = 20;
+                const bidder = addr2.address;
+                const SimulationToken = await ethers.getContractFactory('SimulationToken');
+                var simToken = await SimulationToken.deploy();
+                var erc20Address = await simToken.getAddress();
+                await simToken.mint(addr1.address, tokenAmount);
+                await simToken.connect(addr1).approve(await auctionCoordinator.getAddress(), tokenAmount);
+                await auctionCoordinator.createErc20Auction(erc20Address, tokenAmount, addr1.address,
+                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice);
+                var auctionAddress = await auctionCoordinator.getAuction(auctionId);
+                var auction = await Auction.attach(auctionAddress);
+                await orangeStandTicket.connect(addr2).approve(auctionAddress, bidPrice);
+                await orangeStandTicket.mint(bidder, bidPrice);
+                await auctionCoordinator.makeBid(auctionId, bidder);
+                await mine(1000);
+                // ACT
+                var balanceForFinalBidderBeforeSettlement = await simToken.balanceOf(bidder);
+                await expect(auctionCoordinator.connect(addr1).settleAuction(auctionId))
+                    .to.emit(auction, "AuctionSettled")
+                    .withArgs(auctionId, bidder, biddingPrice);
+                var balanceForFinalBidderAfterSettlement = await simToken.balanceOf(bidder);
+                // ASSERT
+                expect(balanceForFinalBidderBeforeSettlement).to.equal(0);
+                expect(balanceForFinalBidderAfterSettlement).to.equal(tokenAmount);
+            })
+            it('Winning bidder can settle auction', async function () {
+                // ARRANGE
+                await setup();
+                const [owner, addr1, addr2] = await ethers.getSigners();
+                const Auction = await ethers.getContractFactory('Auction');
+                var auctionId = 1;
+                var tokenAmount = 20;
+                const bidder = addr2.address;
+                const SimulationToken = await ethers.getContractFactory('SimulationToken');
+                var simToken = await SimulationToken.deploy();
+                var erc20Address = await simToken.getAddress();
+                await simToken.mint(addr1.address, tokenAmount);
+                await simToken.connect(addr1).approve(await auctionCoordinator.getAddress(), tokenAmount);
+                await auctionCoordinator.createErc20Auction(erc20Address, tokenAmount, addr1.address,
+                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice);
+                var auctionAddress = await auctionCoordinator.getAuction(auctionId);
+                var auction = await Auction.attach(auctionAddress);
+                await orangeStandTicket.connect(addr2).approve(auctionAddress, bidPrice);
+                await orangeStandTicket.mint(bidder, bidPrice);
+                await auctionCoordinator.makeBid(auctionId, bidder);
+                await mine(1000);
+                // ACT
+                var balanceForFinalBidderBeforeSettlement = await simToken.balanceOf(bidder);
+                await expect(auctionCoordinator.connect(addr2).settleAuction(auctionId))
+                    .to.emit(auction, "AuctionSettled")
+                    .withArgs(auctionId, bidder, biddingPrice);
+                var balanceForFinalBidderAfterSettlement = await simToken.balanceOf(bidder);
+                // ASSERT
+                expect(balanceForFinalBidderBeforeSettlement).to.equal(0);
+                expect(balanceForFinalBidderAfterSettlement).to.equal(tokenAmount);
+            })
+            it('Settle auction with multiple bids', async function () {
+                // ARRANGE
+                await setup();
+                const [owner, addr1, addr2, addr3] = await ethers.getSigners();
+                const Auction = await ethers.getContractFactory('Auction');
+                var auctionId = 1;
+                var tokenAmount = 20;
+                const firstBidder = addr2.address;
+                const secondBidder = addr3.address;
+                const SimulationToken = await ethers.getContractFactory('SimulationToken');
+                var simToken = await SimulationToken.deploy();
+                var erc20Address = await simToken.getAddress();
+                await simToken.mint(addr1.address, tokenAmount);
+                await simToken.connect(addr1).approve(await auctionCoordinator.getAddress(), tokenAmount);
+                await auctionCoordinator.createErc20Auction(erc20Address, tokenAmount, addr1.address,
+                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice);
+                var auctionAddress = await auctionCoordinator.getAuction(auctionId);
+                var auction = await Auction.attach(auctionAddress);
+                await orangeStandTicket.connect(addr2).approve(auctionAddress, bidPrice);
+                await orangeStandTicket.mint(firstBidder, bidPrice);
+                await orangeStandTicket.connect(addr3).approve(auctionAddress, bidPrice);
+                await orangeStandTicket.mint(secondBidder, bidPrice);
+                await auctionCoordinator.makeBid(auctionId, firstBidder);
+                await auctionCoordinator.makeBid(auctionId, secondBidder);
+                await mine(1000);
+                // ACT
+                var balanceForFinalBidderBeforeSettlement = await simToken.balanceOf(secondBidder);
+                await expect(auctionCoordinator.connect(addr3).settleAuction(auctionId))
+                    .to.emit(auction, "AuctionSettled")
+                    .withArgs(auctionId, secondBidder, biddingPrice + bidPrice);
+                var balanceForFinalBidderAfterSettlement = await simToken.balanceOf(secondBidder);
+                // ASSERT
+                expect(balanceForFinalBidderBeforeSettlement).to.equal(0);
+                expect(balanceForFinalBidderAfterSettlement).to.equal(tokenAmount);
+            })
+            it('Settle auction with ERC20 auction', async function () {
+                // ARRANGE
+                await setup();
+                const [owner, addr1, addr2] = await ethers.getSigners();
+                const Auction = await ethers.getContractFactory('Auction');
+                var auctionId = 1;
+                var tokenAmount = 20;
+                const bidder = addr2.address;
+                const SimulationToken = await ethers.getContractFactory('SimulationToken');
+                var simToken = await SimulationToken.deploy();
+                var erc20Address = await simToken.getAddress();
+                await simToken.mint(addr1.address, tokenAmount);
+                await simToken.connect(addr1).approve(await auctionCoordinator.getAddress(), tokenAmount);
+                await auctionCoordinator.createErc20Auction(erc20Address, tokenAmount, addr1.address,
+                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice);
+                var auctionAddress = await auctionCoordinator.getAuction(auctionId);
+                var auction = await Auction.attach(auctionAddress);
+                await orangeStandTicket.connect(addr2).approve(auctionAddress, bidPrice);
+                await orangeStandTicket.mint(bidder, bidPrice);
+                await auctionCoordinator.makeBid(auctionId, bidder);
+                await mine(1000);
+                // ACT
+                var balanceForFinalBidderBeforeSettlement = await simToken.balanceOf(bidder);
+                await expect(auctionCoordinator.connect(addr2).settleAuction(auctionId))
+                    .to.emit(auction, "AuctionSettled")
+                    .withArgs(auctionId, bidder, biddingPrice);
+                var balanceForFinalBidderAfterSettlement = await simToken.balanceOf(bidder);
+                // ASSERT
+                expect(balanceForFinalBidderBeforeSettlement).to.equal(0);
+                expect(balanceForFinalBidderAfterSettlement).to.equal(tokenAmount);
+            })
+            it('Settle auction with ERC721 auction', async function () {
+                // ARRANGE
+                await setup();
+                const [owner, addr1, addr2] = await ethers.getSigners();
+                const Auction = await ethers.getContractFactory('Auction');
                 const LocalCollectible = await ethers.getContractFactory('LocalCollectible');
+                var auctionId = 1;
+                const bidder = addr2.address;
                 var auctionNft = await LocalCollectible.deploy();
                 const tokenId = 1;
-                const originalOwnerAddress = '0xD336C41f8b1494a7289D39d8De4aADB3792d8515';
                 const bidPrice = 10;
-
                 const itemAddress = await auctionNft.getAddress();
-                const [owner] = await ethers.getSigners();
-                await auctionNft.mintItem(await auctionCoordinator.getAddress(), 'QmfVMAmNM1kDEBYrC2TPzQDoCRFH6F5tE1e9Mr4FkkR5Xr');
-
-                await item.addErc721(itemAddress, tokenNum);
-                await auctionCoordinator.setUpAuction(await item.getAddress(), originalOwnerAddress, bidTimeInMinutes, 
-                    biddingPrice, orangeStandTicket, bidPrice);
-                const Auction = await ethers.getContractFactory('Auction');
-
-                var auctionId = 1;
-
-                var retrievedAuctionItem = await Auction.attach(await auctionCoordinator.getAuction(auctionId));
-                var auctionStatusBeforeClosing = await retrievedAuctionItem.isFinished();
-
+                await auctionNft.mintItem(addr1.address, 'QmfVMAmNM1kDEBYrC2TPzQDoCRFH6F5tE1e9Mr4FkkR5Xr');
+                await auctionNft.connect(addr1).approve(await auctionCoordinator.getAddress(), tokenId);
+                await auctionCoordinator.createAuction(itemAddress, tokenId, addr1.address,
+                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice);
                 var auctionAddress = await auctionCoordinator.getAuction(auctionId);
-                await orangeStandTicket.connect(owner).approve(auctionAddress, bidPrice);
-                await orangeStandTicket.mint(owner.address, bidPrice);
-
-                await auctionCoordinator.makeBid(auctionId, owner.address);
-
+                var auction = await Auction.attach(auctionAddress);
+                await orangeStandTicket.connect(addr2).approve(auctionAddress, bidPrice);
+                await orangeStandTicket.mint(bidder, bidPrice);
+                await auctionCoordinator.makeBid(auctionId, bidder);
                 await mine(1000);
-                await auctionCoordinator.settleAuction(auctionId);
-                await mine(1000);
-
-                var auctionStatusAfterClosing = await retrievedAuctionItem.isFinished();
-
-                expect(auctionStatusBeforeClosing).to.equal(false);
-                expect(auctionStatusAfterClosing).to.equal(true);
+                // ACT
+                var ownerOfItemBeforeSettlement = await auctionNft.ownerOf(tokenId);
+                await expect(auctionCoordinator.connect(addr2).settleAuction(auctionId))
+                    .to.emit(auction, "AuctionSettled")
+                    .withArgs(auctionId, bidder, biddingPrice);
+                var ownerOfItemAfterSettlement = await auctionNft.ownerOf(tokenId);
+                // ASSERT
+                expect(ownerOfItemBeforeSettlement).to.equal(await auctionCoordinator.getAddress());
+                expect(ownerOfItemAfterSettlement).to.equal(bidder);
             })
         });
     });
