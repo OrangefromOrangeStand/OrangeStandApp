@@ -12,6 +12,7 @@ describe('AuctionCoordinator tests', function () {
         const contractAddress = process.env.CONTRACT_ADDRESS;
         const itemAddress = '0xE5C1E03225Af47391E51b79D6D149987cde5B222';
         const originalOwnerAddress = '0xD336C41f8b1494a7289D39d8De4aADB3792d8515';
+        const treasuryAddress = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266';
         const bidPrice = 8;
         const bidTimeInMinutes = 4;
         let orangeStandTicket: Contract;
@@ -19,18 +20,18 @@ describe('AuctionCoordinator tests', function () {
 
         async function setup(){
             if (contractAddress) {
-                auctionCoordinator = await ethers.getContractAt('AuctionCoordinator', contractAddress);
+                auctionCoordinator = await ethers.getContractAt('AuctionCoordinator', contractAddress, treasuryAddress);
             } else {
                 const AuctionCoordinator = await ethers.getContractFactory('AuctionCoordinator');
                 const OrangeStandTicket = await ethers.getContractFactory('OrangeStandTicket');
                 orangeStandTicket = await OrangeStandTicket.deploy()
-                auctionCoordinator = await AuctionCoordinator.deploy(await orangeStandTicket.getAddress())
+                auctionCoordinator = await AuctionCoordinator.deploy(await orangeStandTicket.getAddress(), treasuryAddress)
             }
         }
         
         if (contractAddress) {
             it('Should connect to external contract', async function () {
-                auctionCoordinator = await ethers.getContractAt('AuctionCoordinator', contractAddress);
+                auctionCoordinator = await ethers.getContractAt('AuctionCoordinator', contractAddress, treasuryAddress);
                 console.log('Connected to external contract', auctionCoordinator.address);
             });
         } else {
@@ -38,7 +39,7 @@ describe('AuctionCoordinator tests', function () {
                 const AuctionCoordinator = await ethers.getContractFactory('AuctionCoordinator');
                 const OrangeStandTicket = await ethers.getContractFactory('OrangeStandTicket');
                 orangeStandTicket = await OrangeStandTicket.deploy()
-                auctionCoordinator = await AuctionCoordinator.deploy(await orangeStandTicket.getAddress())
+                auctionCoordinator = await AuctionCoordinator.deploy(await orangeStandTicket.getAddress(), treasuryAddress)
             });
         }
 
@@ -631,6 +632,41 @@ describe('AuctionCoordinator tests', function () {
                 // ASSERT
                 expect(balanceForFinalBidderBeforeSettlement).to.equal(0);
                 expect(balanceForFinalBidderAfterSettlement).to.equal(tokenAmount);
+            })
+            it('Settle auction check for treasury payment', async function () {
+                // ARRANGE
+                await setup();
+                const [owner, addr1, addr2] = await ethers.getSigners();
+                const Auction = await ethers.getContractFactory('Auction');
+                var auctionId = 1;
+                var tokenAmount = 20;
+                var bidPrice = 100;
+                var biddingPrice = 1;
+                const bidder = addr2.address;
+                const SimulationToken = await ethers.getContractFactory('SimulationToken');
+                var simToken = await SimulationToken.deploy();
+                var erc20Address = await simToken.getAddress();
+                await simToken.mint(addr1.address, tokenAmount);
+                await simToken.connect(addr1).approve(await auctionCoordinator.getAddress(), tokenAmount);
+                await auctionCoordinator.createErc20Auction(erc20Address, tokenAmount, addr1.address,
+                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice);
+                var auctionAddress = await auctionCoordinator.getAuction(auctionId);
+                var auction = await Auction.attach(auctionAddress);
+                await orangeStandTicket.connect(addr2).approve(auctionAddress, bidPrice);
+                await orangeStandTicket.mint(bidder, bidPrice);
+                await auctionCoordinator.makeBid(auctionId, bidder);
+                await mine(1000);
+                // ACT
+                await expect(auctionCoordinator.connect(addr2).settleAuction(auctionId))
+                    .to.emit(auction, "AuctionSettled")
+                    .withArgs(auctionId, bidder, biddingPrice);
+                var ticketBalanceForFinalBidder = await orangeStandTicket.balanceOf(bidder);
+                var treasuryBalance = await orangeStandTicket.balanceOf(treasuryAddress);
+                var ticketBalanceForOwner = await orangeStandTicket.balanceOf(addr1.address);
+                // ASSERT
+                expect(ticketBalanceForFinalBidder).to.equal(0);
+                expect(treasuryBalance).to.equal(1);
+                expect(ticketBalanceForOwner).to.equal(99);
             })
             it('Original owner can settle auction', async function () {
                 // ARRANGE

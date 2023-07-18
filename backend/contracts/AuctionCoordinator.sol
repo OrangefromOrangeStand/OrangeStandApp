@@ -24,6 +24,7 @@ contract AuctionCoordinator is AccessControl {
   EnumerableSet.UintSet private activeAuctions;
   mapping(uint256 => Auction) private auctions;
   address private paymentTicketAddress;
+  address private acTreasuryAddress;
 
   // Create a new role identifier for the minter role
   bytes32 public constant ITEM_OWNER = keccak256("ITEM_OWNER");
@@ -32,8 +33,9 @@ contract AuctionCoordinator is AccessControl {
   /*function initialize() public initializer {
   }*/
 
-  constructor(address ticketAddress){
+  constructor(address ticketAddress, address treasuryAddress){
     paymentTicketAddress = ticketAddress;
+    acTreasuryAddress = treasuryAddress;
   }
 
   function getAllActiveAuctions() public view returns (uint256[] memory){
@@ -51,8 +53,6 @@ contract AuctionCoordinator is AccessControl {
     uint256 newPrice = auction.getInitialPrice();
     if(address(activeBid) != address(0x0)){
       newPrice = activeBid.getBidPrice();
-      //uint256 activeBidPrice = activeBid.getBidPrice();
-      //newPrice = activeBidPrice + auction.getCycleDuration();
     }
     newPrice = newPrice + auction.getCycleDuration();
     Bid newBid = new Bid(bidder, block.timestamp, itemAddress, newPrice);
@@ -106,7 +106,8 @@ contract AuctionCoordinator is AccessControl {
     uint256 auctionId = _auctionIds.current();
 
     _grantRole(ITEM_OWNER, originalOwner);
-    auctions[auctionId] = new Auction(auctionId, Item(item), block.timestamp, auctionSpeed, initialBidPrice, originalOwner, bidCost, paymentToken);
+    auctions[auctionId] = new Auction(auctionId, Item(item), block.timestamp, 
+        auctionSpeed, initialBidPrice, originalOwner, bidCost, paymentToken, acTreasuryAddress);
     activeAuctions.add(auctionId);
     return auctionId;
   }

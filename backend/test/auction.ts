@@ -18,6 +18,7 @@ describe('Auction tests', function () {
         const originalOwnerAddress = '0xD336C41f8b1494a7289D39d8De4aADB3792d8515';
         const priceIncrease = 5;
         const paymentToken = '0xE5C1E03225Af47391E51b79D6D149987cde5B222';
+        const treasuryAddress = '0x73d40cebfc02b67a1e87d67202545821b96c4645';
 
         const bidderAddress = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266';
         let bidder2Address = '0xD336C41f8b1494a7289D39d8De4aADB3792d8515';
@@ -38,7 +39,7 @@ describe('Auction tests', function () {
 
                 auction = await Auction.deploy(
                     auctionId, itemAddress, auctionStartTime, auctionLengthInMinutes, 
-                    initialPrice, originalOwnerAddress, priceIncrease, paymentToken)
+                    initialPrice, originalOwnerAddress, priceIncrease, paymentToken, treasuryAddress)
             });
         }
 
@@ -131,7 +132,7 @@ describe('Auction tests', function () {
                 auction = await Auction.deploy(
                     auctionId, itemAddress, timestampForBlockBefore, 
                     cycleDurationInMinutes, initialPrice, 
-                    originalOwnerAddress, bidPrice, paymentTokenAddress);
+                    originalOwnerAddress, bidPrice, paymentTokenAddress, treasuryAddress);
                 const auctionAddress = await auction.getAddress();
                 await paymentToken.approve(auctionAddress, bidPrice);
 
@@ -172,7 +173,7 @@ describe('Auction tests', function () {
                 auction = await Auction.deploy(
                     auctionId, itemAddress, timestampForBlockBefore, 
                     cycleDurationInMinutes, initialPrice, 
-                    originalOwnerAddress, bidPrice, paymentTokenAddress);
+                    originalOwnerAddress, bidPrice, paymentTokenAddress, treasuryAddress);
                 const auctionAddress = await auction.getAddress();
                 await paymentToken.approve(auctionAddress, bidPrice, {'from': bidderAddress});
                 await paymentToken.connect(address2).approve(auctionAddress, bidPrice);                
@@ -213,7 +214,7 @@ describe('Auction tests', function () {
                 auction = await Auction.deploy(
                     auctionId, itemAddress, timestampForBlockBefore, 
                     cycleDurationInMinutes, initialPrice, 
-                    originalOwnerAddress, bidPrice, paymentTokenAddress);
+                    originalOwnerAddress, bidPrice, paymentTokenAddress, treasuryAddress);
                 const auctionAddress = await auction.getAddress();
                 await paymentToken.approve(auctionAddress, bidPrice);
 
@@ -250,7 +251,7 @@ describe('Auction tests', function () {
                 auction = await Auction.deploy(
                     auctionId, itemAddress, timestampForBlockBefore, 
                     cycleDurationInMinutes, initialPrice, 
-                    originalOwnerAddress, bidPrice, paymentTokenAddress);
+                    originalOwnerAddress, bidPrice, paymentTokenAddress, treasuryAddress);
                 const auctionAddress = await auction.getAddress();
                 await paymentToken.approve(auctionAddress, bidPrice);
 
@@ -284,7 +285,7 @@ describe('Auction tests', function () {
                 auction = await Auction.deploy(
                     auctionId, itemAddress, timestampForBlockBefore, 
                     cycleDurationInMinutes, initialPrice, 
-                    originalOwnerAddress, bidPrice, paymentTokenAddress);
+                    originalOwnerAddress, bidPrice, paymentTokenAddress, treasuryAddress);
                 const auctionAddress = await auction.getAddress();
                 await paymentToken.approve(auctionAddress, bidPrice);
 
@@ -294,6 +295,60 @@ describe('Auction tests', function () {
                 // ASSERT
                 await expect(auction.settle()).to.emit(auction, "AuctionSettled")
                     .withArgs(auctionId, bidderAddress, initialPrice);
+            })
+
+            it('Check treasury balance after auction', async function () {
+                // ARRANGE
+                // Set up the payment token
+                const OrangeStandTicket = await ethers.getContractFactory("OrangeStandTicket");
+                const paymentToken = await OrangeStandTicket.deploy();
+                const [owner] = await ethers.getSigners();
+                const bidPrice = 100;
+                paymentToken.mint(bidderAddress, bidPrice);
+                const paymentTokenAddress = await paymentToken.getAddress();
+                // Get the previous block's timestamp
+                const blockNumBefore = await ethers.provider.getBlockNumber();
+                const blockBefore = await ethers.provider.getBlock(blockNumBefore);
+                const timestampForBlockBefore = blockBefore.timestamp;
+                // Get the transaction's block timestamp
+                const timestampForExecutingBlock = timestampForBlockBefore + 1;
+                // Set up the bid
+                const Bid = await ethers.getContractFactory('Bid');
+                
+                const cycleDurationInMinutes = 1;
+                var bid = await Bid.deploy(bidderAddress, timestampForExecutingBlock, itemAddress, bidPrice);
+                // SUT
+                const Auction = await ethers.getContractFactory('Auction');
+                auction = await Auction.deploy(
+                    auctionId, itemAddress, timestampForBlockBefore, 
+                    cycleDurationInMinutes, initialPrice, 
+                    originalOwnerAddress, bidPrice, paymentTokenAddress, treasuryAddress);
+                const auctionAddress = await auction.getAddress();
+                await paymentToken.approve(auctionAddress, bidPrice);
+
+                // ACT
+                var treasuryBalanceBeforeBid = await paymentToken.balanceOf(treasuryAddress);
+                var originalOwnerBalanceBeforeBid = await paymentToken.balanceOf(originalOwnerAddress);
+                var bidderBalanceBeforeBid = await paymentToken.balanceOf(owner.address);
+                await auction.makeNewBid(bid);
+                var treasuryBalanceAfterBid = await paymentToken.balanceOf(treasuryAddress);
+                var originalOwnerBalanceAfterBid = await paymentToken.balanceOf(originalOwnerAddress);
+                var bidderBalanceAfterBid = await paymentToken.balanceOf(owner.address);
+                await mine(1000);
+                // ASSERT
+                await auction.settle();
+                var treasuryBalanceAfterSettlement = await paymentToken.balanceOf(treasuryAddress);
+                var originalOwnerBalanceAfterSettlement = await paymentToken.balanceOf(originalOwnerAddress);
+                var bidderBalanceAfterSettlement = await paymentToken.balanceOf(owner.address);
+                expect(treasuryBalanceBeforeBid).to.equal(0);
+                expect(treasuryBalanceAfterBid).to.equal(0);
+                expect(treasuryBalanceAfterSettlement).to.equal(1);
+                expect(originalOwnerBalanceBeforeBid).to.equal(0);
+                expect(originalOwnerBalanceAfterBid).to.equal(0);
+                expect(originalOwnerBalanceAfterSettlement).to.equal(99);
+                expect(bidderBalanceBeforeBid).to.equal(100);
+                expect(bidderBalanceAfterBid).to.equal(0);
+                expect(bidderBalanceAfterSettlement).to.equal(0);
             })
 
             it('Try to settle a closed auction twice', async function () {
@@ -319,7 +374,7 @@ describe('Auction tests', function () {
                 auction = await Auction.deploy(
                     auctionId, itemAddress, timestampForBlockBefore, 
                     cycleDurationInMinutes, initialPrice, 
-                    originalOwnerAddress, bidPrice, paymentTokenAddress);
+                    originalOwnerAddress, bidPrice, paymentTokenAddress, treasuryAddress);
                 const auctionAddress = await auction.getAddress();
                 await paymentToken.approve(auctionAddress, bidPrice);
 

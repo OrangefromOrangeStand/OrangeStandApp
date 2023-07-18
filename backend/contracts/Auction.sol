@@ -25,6 +25,7 @@ contract Auction is Ownable {
   uint256 private _priceIncrease;
   address private _paymentToken;
   uint256 private _activePrice;
+  address private _treasuryAddress;
 
   constructor(
     uint256 id,
@@ -34,7 +35,8 @@ contract Auction is Ownable {
     uint256 initialPrice,
     address originalOwner,
     uint256 priceIncrease,
-    address paymentToken
+    address paymentToken,
+    address treasuryAddress
   ) {
     _id = id;
     _item = item;
@@ -46,6 +48,7 @@ contract Auction is Ownable {
     _priceIncrease = priceIncrease;
     _paymentToken = paymentToken;
     _activePrice = initialPrice;
+    _treasuryAddress = treasuryAddress;
   }
 
   function getId() public view returns (uint256) {
@@ -127,7 +130,8 @@ contract Auction is Ownable {
         _settled = true;
         IERC20 paymentContract = IERC20(_paymentToken);
         uint256 balance = paymentContract.balanceOf(address(this));
-        paymentContract.transfer(getOriginalOwner(), balance);
+        paymentContract.transfer(getOriginalOwner(), (balance * 99) / 100);
+        paymentContract.transfer(_treasuryAddress, (balance * 1) / 100);
       }
       Bid finalBid = Bid(_activeBid);
       address bidderAddress = getOriginalOwner();
