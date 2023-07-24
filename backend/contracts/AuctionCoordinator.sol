@@ -1,12 +1,10 @@
 pragma solidity >=0.8.0 <0.9.0;
-
 //SPDX-License-Identifier: MIT
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
-
 import "./Bid.sol";
 import "./Item.sol";
 import "./Auction.sol";
@@ -24,18 +22,17 @@ contract AuctionCoordinator is AccessControl {
   EnumerableSet.UintSet private activeAuctions;
   mapping(uint256 => Auction) private auctions;
   address private paymentTicketAddress;
+  address private settledPaymentTicketAddress;
   address private acTreasuryAddress;
 
   // Create a new role identifier for the minter role
   bytes32 public constant ITEM_OWNER = keccak256("ITEM_OWNER");
   bytes32 public constant ACTIVE_BIDDER = keccak256("ACTIVE_BIDDER");
 
-  /*function initialize() public initializer {
-  }*/
-
-  constructor(address ticketAddress, address treasuryAddress){
+  constructor(address ticketAddress, address treasuryAddress, address settledTicketAddress){
     paymentTicketAddress = ticketAddress;
     acTreasuryAddress = treasuryAddress;
+    settledPaymentTicketAddress = settledTicketAddress;
   }
 
   function getAllActiveAuctions() public view returns (uint256[] memory){
@@ -49,7 +46,6 @@ contract AuctionCoordinator is AccessControl {
     Auction auction = Auction(auctions[auctionId]);
     Bid activeBid = Bid(auction.getActiveBid());
     address itemAddress = address(auction.getItem());
-
     uint256 newPrice = auction.getInitialPrice();
     if(address(activeBid) != address(0x0)){
       newPrice = activeBid.getBidPrice();
@@ -75,7 +71,8 @@ contract AuctionCoordinator is AccessControl {
     IERC721(erc721Address).transferFrom(address(originalOwner), address(this), tokenId);
     Item newItem = new Item();
     newItem.addErc721(erc721Address, tokenId);
-    uint256 auctionId = setUpAuction(address(newItem), originalOwner, auctionSpeed, initialBidPrice, paymentToken, bidCost);
+    uint256 auctionId = setUpAuction(address(newItem), originalOwner, auctionSpeed, 
+      initialBidPrice, paymentToken, bidCost, settledPaymentTicketAddress);
     emit Erc721AuctionCreation(auctionId,erc721Address,originalOwner,tokenId, block.number);
   }
 
@@ -90,7 +87,8 @@ contract AuctionCoordinator is AccessControl {
     Item newItem = new Item();
     IERC20(erc20Address).transferFrom(address(originalOwner), address(this), amount);
     newItem.addErc20(erc20Address, amount);
-    uint256 auctionId = setUpAuction(address(newItem), originalOwner, auctionSpeed, initialBidPrice, paymentToken, bidCost);
+    uint256 auctionId = setUpAuction(address(newItem), originalOwner, auctionSpeed, initialBidPrice, 
+      paymentToken, bidCost, settledPaymentTicketAddress);
     emit Erc20AuctionCreation(auctionId,erc20Address,originalOwner,amount, block.number);
   }
 
@@ -100,14 +98,15 @@ contract AuctionCoordinator is AccessControl {
     uint256 auctionSpeed,
     uint256 initialBidPrice,
     address paymentToken,
-    uint256 bidCost
+    uint256 bidCost,
+    address settledTicketAddress
   ) public returns (uint256){
     _auctionIds.increment();
     uint256 auctionId = _auctionIds.current();
-
     _grantRole(ITEM_OWNER, originalOwner);
     auctions[auctionId] = new Auction(auctionId, Item(item), block.timestamp, 
-        auctionSpeed, initialBidPrice, originalOwner, bidCost, paymentToken, acTreasuryAddress);
+        auctionSpeed, initialBidPrice, originalOwner, bidCost, paymentToken, 
+        acTreasuryAddress, settledTicketAddress);
     activeAuctions.add(auctionId);
     return auctionId;
   }
@@ -117,7 +116,6 @@ contract AuctionCoordinator is AccessControl {
   ) public {
     require(hasRole(ITEM_OWNER, msg.sender) || hasRole(ACTIVE_BIDDER, msg.sender), "Caller is not allowed to settle auction");
     auctions[auctionId].settle();
-
     Item item = auctions[auctionId].getItem();
     Bid activeBid = auctions[auctionId].getActiveBid();
     address transferAddress = auctions[auctionId].getOriginalOwner();
