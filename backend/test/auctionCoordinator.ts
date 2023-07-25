@@ -13,6 +13,7 @@ describe('AuctionCoordinator tests', function () {
         const itemAddress = '0xE5C1E03225Af47391E51b79D6D149987cde5B222';
         const originalOwnerAddress = '0xD336C41f8b1494a7289D39d8De4aADB3792d8515';
         const treasuryAddress = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266';
+        const settlementToken = '0x198eebe8da4db8a475f9b31c864bf089e550719c';
         const bidPrice = 8;
         const bidTimeInMinutes = 4;
         let orangeStandTicket: Contract;
@@ -20,18 +21,21 @@ describe('AuctionCoordinator tests', function () {
 
         async function setup(){
             if (contractAddress) {
-                auctionCoordinator = await ethers.getContractAt('AuctionCoordinator', contractAddress, treasuryAddress);
+                auctionCoordinator = await ethers.getContractAt('AuctionCoordinator', contractAddress, 
+                    treasuryAddress, settlementToken);
             } else {
                 const AuctionCoordinator = await ethers.getContractFactory('AuctionCoordinator');
                 const OrangeStandTicket = await ethers.getContractFactory('OrangeStandTicket');
                 orangeStandTicket = await OrangeStandTicket.deploy()
-                auctionCoordinator = await AuctionCoordinator.deploy(await orangeStandTicket.getAddress(), treasuryAddress)
+                auctionCoordinator = await AuctionCoordinator.deploy(await orangeStandTicket.getAddress(), 
+                    treasuryAddress, settlementToken)
             }
         }
         
         if (contractAddress) {
             it('Should connect to external contract', async function () {
-                auctionCoordinator = await ethers.getContractAt('AuctionCoordinator', contractAddress, treasuryAddress);
+                auctionCoordinator = await ethers.getContractAt('AuctionCoordinator', contractAddress, 
+                    treasuryAddress, settlementToken);
                 console.log('Connected to external contract', auctionCoordinator.address);
             });
         } else {
@@ -39,7 +43,8 @@ describe('AuctionCoordinator tests', function () {
                 const AuctionCoordinator = await ethers.getContractFactory('AuctionCoordinator');
                 const OrangeStandTicket = await ethers.getContractFactory('OrangeStandTicket');
                 orangeStandTicket = await OrangeStandTicket.deploy()
-                auctionCoordinator = await AuctionCoordinator.deploy(await orangeStandTicket.getAddress(), treasuryAddress)
+                auctionCoordinator = await AuctionCoordinator.deploy(await orangeStandTicket.getAddress(), 
+                    treasuryAddress, settlementToken)
             });
         }
 
@@ -124,7 +129,7 @@ describe('AuctionCoordinator tests', function () {
                 const secondBidder = addr2.address;
                 var auctionId = 1;
                 await auctionCoordinator.setUpAuction(itemAddress, originalOwnerAddress, bidTimeInMinutes, 
-                    biddingPrice, orangeStandTicket, bidPrice);
+                    biddingPrice, orangeStandTicket, bidPrice, settlementToken);
                 var auctionAddress = await auctionCoordinator.getAuction(auctionId);
                 await orangeStandTicket.connect(addr1).approve(auctionAddress, bidPrice);
                 await orangeStandTicket.connect(addr2).approve(auctionAddress, bidPrice);
@@ -149,10 +154,10 @@ describe('AuctionCoordinator tests', function () {
                 const firstBidder = addr1.address;
                 var auctionId = 1;
                 await auctionCoordinator.setUpAuction(itemAddress, originalOwnerAddress, bidTimeInMinutes, 
-                    biddingPrice, orangeStandTicket, bidPrice);
+                    biddingPrice, orangeStandTicket, bidPrice, settlementToken);
                 var auctionAddress = await auctionCoordinator.getAuction(auctionId);
                 await orangeStandTicket.connect(addr1).approve(auctionAddress, bidPrice);
-                await orangeStandTicket.mint(firstBidder, bidPrice);
+                await orangeStandTicket.mint(firstBidder, bidPrice, settlementToken);
                 
                 // ACT
                 await auctionCoordinator.makeBid(auctionId, firstBidder);
@@ -171,7 +176,7 @@ describe('AuctionCoordinator tests', function () {
                 var auctionId = 1;
                 // ACT
                 await auctionCoordinator.setUpAuction(itemAddress, originalOwnerAddress, bidTimeInMinutes, 
-                    biddingPrice, orangeStandTicket, bidPrice);
+                    biddingPrice, orangeStandTicket, bidPrice, settlementToken);
                 // ASSERT
                 var retrievedActiveAuction = await Auction.attach(await auctionCoordinator.getAuction(auctionId));
                 var retrievedItemAddress = await retrievedActiveAuction.getItem();
@@ -186,9 +191,9 @@ describe('AuctionCoordinator tests', function () {
                 var secondAuctionId = 2;
                 // ACT
                 await auctionCoordinator.setUpAuction(itemAddress, originalOwnerAddress, bidTimeInMinutes, 
-                    biddingPrice, orangeStandTicket, bidPrice);
+                    biddingPrice, orangeStandTicket, bidPrice, settlementToken);
                 await auctionCoordinator.setUpAuction(secondItemAddress, originalOwnerAddress, bidTimeInMinutes, 
-                    biddingPrice, orangeStandTicket, bidPrice);
+                    biddingPrice, orangeStandTicket, bidPrice, settlementToken);
                 // ASSERT
                 var firstRetrievedActiveAuction = await Auction.attach(await auctionCoordinator.getAuction(firstAuctionId));
                 var secondRetrievedActiveAuction = await Auction.attach(await auctionCoordinator.getAuction(secondAuctionId));
@@ -204,7 +209,7 @@ describe('AuctionCoordinator tests', function () {
                 // ARRANGE
                 await setup()
                 await auctionCoordinator.setUpAuction(itemAddress, originalOwnerAddress, bidTimeInMinutes, 
-                    biddingPrice, orangeStandTicket, bidPrice);
+                    biddingPrice, orangeStandTicket, bidPrice, settlementToken);
                 const Auction = await ethers.getContractFactory('Auction');
                 var auctionId = 1;
                 // ACT
@@ -219,11 +224,11 @@ describe('AuctionCoordinator tests', function () {
                 const Auction = await ethers.getContractFactory('Auction');
                 // Set up first auction
                 await auctionCoordinator.setUpAuction(itemAddress, originalOwnerAddress, bidTimeInMinutes, 
-                    biddingPrice, orangeStandTicket, bidPrice);
+                    biddingPrice, orangeStandTicket, bidPrice, settlementToken);
                 // Set up second auction
                 const secondItemAddress = '0xD336C41f8b1494a7289D39d8De4aADB3792d8515';
                 await auctionCoordinator.setUpAuction(secondItemAddress, originalOwnerAddress, bidTimeInMinutes, 
-                    biddingPrice, orangeStandTicket, bidPrice);
+                    biddingPrice, orangeStandTicket, bidPrice, settlementToken);
                 var firstAuctionId = 1;
                 var secondAuctionId = 2;
                 // ACT
@@ -243,7 +248,7 @@ describe('AuctionCoordinator tests', function () {
                 var auctionId = 1;
                 // ACT
                 await auctionCoordinator.setUpAuction(itemAddress, originalOwnerAddress, bidTimeInMinutes, 
-                    biddingPrice, orangeStandTicket, bidPrice);
+                    biddingPrice, orangeStandTicket, bidPrice, settlementToken);
                 // ASSERT
                 var retrievedAuction = await Auction.attach(await auctionCoordinator.getAuction(auctionId));
                 expect(await retrievedAuction.getOriginalOwner()).to.equal(originalOwnerAddress);
@@ -268,7 +273,7 @@ describe('AuctionCoordinator tests', function () {
                 await auctionNft.connect(addr1).approve(await auctionCoordinator.getAddress(), tokenId);
                 // ACT
                 await expect(auctionCoordinator.createAuction(erc721ItemAddress, tokenId, addr1.address,
-                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice))
+                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice, settlementToken))
                     .to.emit(auctionCoordinator, "Erc721AuctionCreation")
                     .withArgs(auctionId, erc721ItemAddress, addr1.address, tokenId, Number);
                 // ASSERT
@@ -301,11 +306,11 @@ describe('AuctionCoordinator tests', function () {
                 await auctionNft.connect(addr2).approve(await auctionCoordinator.getAddress(), secondAuctionTokenId);
                 // ACT
                 await expect(auctionCoordinator.createAuction(erc721ItemAddress, firstAuctionTokenId, addr1.address,
-                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice))
+                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice, settlementToken))
                     .to.emit(auctionCoordinator, "Erc721AuctionCreation")
                     .withArgs(firstAuctionId, erc721ItemAddress, addr1.address, firstAuctionTokenId, Number);
                 await expect(auctionCoordinator.createAuction(erc721ItemAddress, secondAuctionTokenId, addr2.address,
-                        bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice))
+                        bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice, settlementToken))
                         .to.emit(auctionCoordinator, "Erc721AuctionCreation")
                         .withArgs(secondAuctionId, erc721ItemAddress, addr2.address, secondAuctionTokenId, Number);
                 // ASSERT
@@ -342,7 +347,7 @@ describe('AuctionCoordinator tests', function () {
                 await simToken.connect(addr1).approve(await auctionCoordinator.getAddress(), tokenAmount);
                 // ACT
                 await expect(auctionCoordinator.createErc20Auction(erc20Address, tokenAmount, addr1.address,
-                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice))
+                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice, settlementToken))
                     .to.emit(auctionCoordinator, "Erc20AuctionCreation")
                     .withArgs(auctionId, erc20Address, addr1.address, tokenAmount, Number);
                 // ASSERT
@@ -376,11 +381,11 @@ describe('AuctionCoordinator tests', function () {
                 await simToken.connect(addr2).approve(await auctionCoordinator.getAddress(), secondAuctionTokenAmount);
                 // ACT
                 await expect(auctionCoordinator.createErc20Auction(erc20Address, firstAuctionTokenAmount, addr1.address,
-                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice))
+                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice, settlementToken))
                     .to.emit(auctionCoordinator, "Erc20AuctionCreation")
                     .withArgs(firstAuctionId, erc20Address, addr1.address, firstAuctionTokenAmount, Number);
                 await expect(auctionCoordinator.createErc20Auction(erc20Address, secondAuctionTokenAmount, addr2.address,
-                        bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice))
+                        bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice, settlementToken))
                         .to.emit(auctionCoordinator, "Erc20AuctionCreation")
                         .withArgs(secondAuctionId, erc20Address, addr2.address, secondAuctionTokenAmount, Number);
                 // ASSERT
@@ -412,7 +417,7 @@ describe('AuctionCoordinator tests', function () {
                 await simToken.mint(addr1.address, tokenAmount);
                 await simToken.connect(addr1).approve(await auctionCoordinator.getAddress(), tokenAmount);
                 await auctionCoordinator.createErc20Auction(erc20Address, tokenAmount, addr1.address,
-                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice);
+                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice, settlementToken);
                 // ACT
                 var allActiveAuctionsCount = await auctionCoordinator.getAllActiveAuctions();
                 // ASSERT
@@ -433,9 +438,9 @@ describe('AuctionCoordinator tests', function () {
                 await simToken.connect(addr2).approve(await auctionCoordinator.getAddress(), secondAuctionTokenAmount);
                 // ACT
                 await auctionCoordinator.createErc20Auction(erc20Address, firstAuctionTokenAmount, addr1.address,
-                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice);
+                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice, settlementToken);
                 await auctionCoordinator.createErc20Auction(erc20Address, secondAuctionTokenAmount, addr2.address,
-                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice);
+                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice, settlementToken);
                 // ACT
                 var allActiveAuctionsCount = await auctionCoordinator.getAllActiveAuctions();
                 // ASSERT
@@ -459,11 +464,11 @@ describe('AuctionCoordinator tests', function () {
                 await simToken.connect(addr3).approve(await auctionCoordinator.getAddress(), thirdAuctionTokenAmount);
                 // ACT
                 await auctionCoordinator.createErc20Auction(erc20Address, firstAuctionTokenAmount, addr1.address,
-                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice);
+                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice, settlementToken);
                 await auctionCoordinator.createErc20Auction(erc20Address, secondAuctionTokenAmount, addr2.address,
-                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice);
+                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice, settlementToken);
                 await auctionCoordinator.createErc20Auction(erc20Address, thirdAuctionTokenAmount, addr3.address,
-                        bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice);
+                        bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice, settlementToken);
                 // ACT
                 var allActiveAuctionsCountBeforeSettlement = await auctionCoordinator.getAllActiveAuctions();
                 await auctionCoordinator.connect(addr1).settleAuction(1);
@@ -490,7 +495,7 @@ describe('AuctionCoordinator tests', function () {
                 await simToken.mint(addr1.address, tokenAmount);
                 await simToken.connect(addr1).approve(await auctionCoordinator.getAddress(), tokenAmount);
                 await auctionCoordinator.createErc20Auction(erc20Address, tokenAmount, addr1.address,
-                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice);
+                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice, settlementToken);
                 var auctionAddress = await auctionCoordinator.getAuction(auctionId);
                 var auction = await Auction.attach(auctionAddress);
                 await orangeStandTicket.connect(addr2).approve(auctionAddress, bidPrice);
@@ -520,7 +525,7 @@ describe('AuctionCoordinator tests', function () {
                 await simToken.mint(addr1.address, tokenAmount);
                 await simToken.connect(addr1).approve(await auctionCoordinator.getAddress(), tokenAmount);
                 await auctionCoordinator.createErc20Auction(erc20Address, tokenAmount, addr1.address,
-                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice);
+                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice, settlementToken);
                 var auctionAddress = await auctionCoordinator.getAuction(auctionId);
                 var auction = await Auction.attach(auctionAddress);
                 await orangeStandTicket.connect(addr2).approve(auctionAddress, bidPrice);
@@ -552,7 +557,7 @@ describe('AuctionCoordinator tests', function () {
                 await simToken.mint(addr1.address, tokenAmount);
                 await simToken.connect(addr1).approve(await auctionCoordinator.getAddress(), tokenAmount);
                 await auctionCoordinator.createErc20Auction(erc20Address, tokenAmount, addr1.address,
-                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice);
+                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice, settlementToken);
                 var auctionAddress = await auctionCoordinator.getAuction(auctionId);
                 var auction = await Auction.attach(auctionAddress);
                 await orangeStandTicket.connect(addr2).approve(auctionAddress, bidPrice);
@@ -588,7 +593,7 @@ describe('AuctionCoordinator tests', function () {
                 await simToken.mint(itemOwnerAddress, tokenAmount);
                 await simToken.connect(addr1).approve(await auctionCoordinator.getAddress(), tokenAmount);
                 await auctionCoordinator.createErc20Auction(erc20Address, tokenAmount, itemOwnerAddress,
-                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice);
+                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice, settlementToken);
                 var auctionAddress = await auctionCoordinator.getAuction(auctionId);
                 var auction = await Auction.attach(auctionAddress);
                 await mine(1000);
@@ -616,7 +621,7 @@ describe('AuctionCoordinator tests', function () {
                 await simToken.mint(addr1.address, tokenAmount);
                 await simToken.connect(addr1).approve(await auctionCoordinator.getAddress(), tokenAmount);
                 await auctionCoordinator.createErc20Auction(erc20Address, tokenAmount, addr1.address,
-                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice);
+                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice, settlementToken);
                 var auctionAddress = await auctionCoordinator.getAuction(auctionId);
                 var auction = await Auction.attach(auctionAddress);
                 await orangeStandTicket.connect(addr2).approve(auctionAddress, bidPrice);
@@ -649,7 +654,7 @@ describe('AuctionCoordinator tests', function () {
                 await simToken.mint(addr1.address, tokenAmount);
                 await simToken.connect(addr1).approve(await auctionCoordinator.getAddress(), tokenAmount);
                 await auctionCoordinator.createErc20Auction(erc20Address, tokenAmount, addr1.address,
-                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice);
+                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice, settlementToken);
                 var auctionAddress = await auctionCoordinator.getAuction(auctionId);
                 var auction = await Auction.attach(auctionAddress);
                 await orangeStandTicket.connect(addr2).approve(auctionAddress, bidPrice);
@@ -682,7 +687,7 @@ describe('AuctionCoordinator tests', function () {
                 await simToken.mint(addr1.address, tokenAmount);
                 await simToken.connect(addr1).approve(await auctionCoordinator.getAddress(), tokenAmount);
                 await auctionCoordinator.createErc20Auction(erc20Address, tokenAmount, addr1.address,
-                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice);
+                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice, settlementToken);
                 var auctionAddress = await auctionCoordinator.getAuction(auctionId);
                 var auction = await Auction.attach(auctionAddress);
                 await orangeStandTicket.connect(addr2).approve(auctionAddress, bidPrice);
@@ -713,7 +718,7 @@ describe('AuctionCoordinator tests', function () {
                 await simToken.mint(addr1.address, tokenAmount);
                 await simToken.connect(addr1).approve(await auctionCoordinator.getAddress(), tokenAmount);
                 await auctionCoordinator.createErc20Auction(erc20Address, tokenAmount, addr1.address,
-                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice);
+                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice, settlementToken);
                 var auctionAddress = await auctionCoordinator.getAuction(auctionId);
                 var auction = await Auction.attach(auctionAddress);
                 await orangeStandTicket.connect(addr2).approve(auctionAddress, bidPrice);
@@ -745,7 +750,7 @@ describe('AuctionCoordinator tests', function () {
                 await simToken.mint(addr1.address, tokenAmount);
                 await simToken.connect(addr1).approve(await auctionCoordinator.getAddress(), tokenAmount);
                 await auctionCoordinator.createErc20Auction(erc20Address, tokenAmount, addr1.address,
-                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice);
+                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice, settlementToken);
                 var auctionAddress = await auctionCoordinator.getAuction(auctionId);
                 var auction = await Auction.attach(auctionAddress);
                 await orangeStandTicket.connect(addr2).approve(auctionAddress, bidPrice);
@@ -784,9 +789,9 @@ describe('AuctionCoordinator tests', function () {
                 await simToken.mint(addr2.address, secondAuctionTokenAmount);
                 await simToken.connect(addr2).approve(await auctionCoordinator.getAddress(), secondAuctionTokenAmount);
                 await auctionCoordinator.createErc20Auction(erc20Address, firstAuctionTokenAmount, addr1.address,
-                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice);
+                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice, settlementToken);
                 await auctionCoordinator.createErc20Auction(erc20Address, secondAuctionTokenAmount, addr2.address,
-                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice);
+                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice, settlementToken);
                 var firstAuctionAddress = await auctionCoordinator.getAuction(firstAuctionId);
                 var secondAuctionAddress = await auctionCoordinator.getAuction(secondAuctionId);
                 var firstAuction = await Auction.attach(firstAuctionAddress);
@@ -829,7 +834,7 @@ describe('AuctionCoordinator tests', function () {
                 await simToken.mint(addr1.address, tokenAmount);
                 await simToken.connect(addr1).approve(await auctionCoordinator.getAddress(), tokenAmount);
                 await auctionCoordinator.createErc20Auction(erc20Address, tokenAmount, addr1.address,
-                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice);
+                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice, settlementToken);
                 var auctionAddress = await auctionCoordinator.getAuction(auctionId);
                 var auction = await Auction.attach(auctionAddress);
                 await orangeStandTicket.connect(addr2).approve(auctionAddress, bidPrice);
@@ -861,7 +866,7 @@ describe('AuctionCoordinator tests', function () {
                 await auctionNft.mintItem(addr1.address, 'QmfVMAmNM1kDEBYrC2TPzQDoCRFH6F5tE1e9Mr4FkkR5Xr');
                 await auctionNft.connect(addr1).approve(await auctionCoordinator.getAddress(), tokenId);
                 await auctionCoordinator.createAuction(itemAddress, tokenId, addr1.address,
-                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice);
+                    bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice, settlementToken);
                 var auctionAddress = await auctionCoordinator.getAuction(auctionId);
                 var auction = await Auction.attach(auctionAddress);
                 await orangeStandTicket.connect(addr2).approve(auctionAddress, bidPrice);

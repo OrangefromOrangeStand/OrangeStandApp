@@ -18,6 +18,7 @@ describe('Auction tests', function () {
         const originalOwnerAddress = '0xD336C41f8b1494a7289D39d8De4aADB3792d8515';
         const priceIncrease = 5;
         const paymentToken = '0xE5C1E03225Af47391E51b79D6D149987cde5B222';
+        const settlementToken = '0x198eebe8da4db8a475f9b31c864bf089e550719c';
         const treasuryAddress = '0x73d40cebfc02b67a1e87d67202545821b96c4645';
 
         const bidderAddress = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266';
@@ -39,7 +40,8 @@ describe('Auction tests', function () {
 
                 auction = await Auction.deploy(
                     auctionId, itemAddress, auctionStartTime, auctionLengthInMinutes, 
-                    initialPrice, originalOwnerAddress, priceIncrease, paymentToken, treasuryAddress)
+                    initialPrice, originalOwnerAddress, priceIncrease, paymentToken, 
+                    treasuryAddress, settlementToken)
             });
         }
 
@@ -132,7 +134,8 @@ describe('Auction tests', function () {
                 auction = await Auction.deploy(
                     auctionId, itemAddress, timestampForBlockBefore, 
                     cycleDurationInMinutes, initialPrice, 
-                    originalOwnerAddress, bidPrice, paymentTokenAddress, treasuryAddress);
+                    originalOwnerAddress, bidPrice, paymentTokenAddress, 
+                    treasuryAddress, settlementToken);
                 const auctionAddress = await auction.getAddress();
                 await paymentToken.approve(auctionAddress, bidPrice);
 
@@ -173,7 +176,8 @@ describe('Auction tests', function () {
                 auction = await Auction.deploy(
                     auctionId, itemAddress, timestampForBlockBefore, 
                     cycleDurationInMinutes, initialPrice, 
-                    originalOwnerAddress, bidPrice, paymentTokenAddress, treasuryAddress);
+                    originalOwnerAddress, bidPrice, paymentTokenAddress, 
+                    treasuryAddress, settlementToken);
                 const auctionAddress = await auction.getAddress();
                 await paymentToken.approve(auctionAddress, bidPrice, {'from': bidderAddress});
                 await paymentToken.connect(address2).approve(auctionAddress, bidPrice);                
@@ -214,7 +218,8 @@ describe('Auction tests', function () {
                 auction = await Auction.deploy(
                     auctionId, itemAddress, timestampForBlockBefore, 
                     cycleDurationInMinutes, initialPrice, 
-                    originalOwnerAddress, bidPrice, paymentTokenAddress, treasuryAddress);
+                    originalOwnerAddress, bidPrice, paymentTokenAddress, 
+                    treasuryAddress, settlementToken);
                 const auctionAddress = await auction.getAddress();
                 await paymentToken.approve(auctionAddress, bidPrice);
 
@@ -251,7 +256,8 @@ describe('Auction tests', function () {
                 auction = await Auction.deploy(
                     auctionId, itemAddress, timestampForBlockBefore, 
                     cycleDurationInMinutes, initialPrice, 
-                    originalOwnerAddress, bidPrice, paymentTokenAddress, treasuryAddress);
+                    originalOwnerAddress, bidPrice, paymentTokenAddress, 
+                    treasuryAddress, settlementToken);
                 const auctionAddress = await auction.getAddress();
                 await paymentToken.approve(auctionAddress, bidPrice);
 
@@ -285,7 +291,8 @@ describe('Auction tests', function () {
                 auction = await Auction.deploy(
                     auctionId, itemAddress, timestampForBlockBefore, 
                     cycleDurationInMinutes, initialPrice, 
-                    originalOwnerAddress, bidPrice, paymentTokenAddress, treasuryAddress);
+                    originalOwnerAddress, bidPrice, paymentTokenAddress, 
+                    treasuryAddress, settlementToken);
                 const auctionAddress = await auction.getAddress();
                 await paymentToken.approve(auctionAddress, bidPrice);
 
@@ -322,7 +329,8 @@ describe('Auction tests', function () {
                 auction = await Auction.deploy(
                     auctionId, itemAddress, timestampForBlockBefore, 
                     cycleDurationInMinutes, initialPrice, 
-                    originalOwnerAddress, bidPrice, paymentTokenAddress, treasuryAddress);
+                    originalOwnerAddress, bidPrice, paymentTokenAddress, 
+                    treasuryAddress, settlementToken);
                 const auctionAddress = await auction.getAddress();
                 await paymentToken.approve(auctionAddress, bidPrice);
 
@@ -374,7 +382,8 @@ describe('Auction tests', function () {
                 auction = await Auction.deploy(
                     auctionId, itemAddress, timestampForBlockBefore, 
                     cycleDurationInMinutes, initialPrice, 
-                    originalOwnerAddress, bidPrice, paymentTokenAddress, treasuryAddress);
+                    originalOwnerAddress, bidPrice, paymentTokenAddress, 
+                    treasuryAddress, settlementToken);
                 const auctionAddress = await auction.getAddress();
                 await paymentToken.approve(auctionAddress, bidPrice);
 

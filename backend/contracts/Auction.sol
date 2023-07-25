@@ -6,7 +6,7 @@ import "./Item.sol";
 import "./OrangeStandTicket.sol";
 import "./OrangeStandSpentTicket.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+//import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 
 contract Auction is Ownable {
@@ -118,7 +118,7 @@ contract Auction is Ownable {
         _activePrice += _priceIncrease;
       }
       _activeBid = Bid(newBidAddress);
-      IERC20 paymentContract = IERC20(_paymentToken);
+      OrangeStandTicket paymentContract = OrangeStandTicket(_paymentToken);
       paymentContract.transferFrom(_activeBid.getBidderAddress(), address(this), getPriceIncrease());
       _currentCycleStartTime = block.timestamp;
       emit BidUpdate(_id, newBidAddress, oldBidAddress, _activeBid.getBidderAddress(), oldBidder);
