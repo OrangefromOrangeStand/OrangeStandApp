@@ -33,9 +33,9 @@ contract AuctionCoordinator is AccessControl {
     redemptionAddr = redemptionTicketAddress;
   }
 
-  /*function getAllActiveAuctions() public view returns (uint256[] memory){
+  function getAllActiveAuctions() public view returns (uint256[] memory){
     return activeAuctions.values();
-  }*/
+  }
 
   function makeBid(
     uint256 auctionId,
@@ -96,7 +96,7 @@ contract AuctionCoordinator is AccessControl {
     address paymentToken,
     uint256 bidCost,
     address settledTicketAddress
-  ) public returns (uint256){
+  ) private returns (uint256){
     _auctionIds.increment();
     uint256 auctionId = _auctionIds.current();
     _grantRole(ITEM_OWNER, originalOwner);
