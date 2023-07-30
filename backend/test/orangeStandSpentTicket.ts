@@ -58,5 +58,39 @@ describe('OrangeStandSpentTicket tests', function () {
                 expect(balanceAfterBurn).to.equal(0);
             })
         });
+
+        describe('redeemTickets()', function () {
+            it('Redeem single ticket', async function () {
+                // ARRANGE
+                const [owner, addr1] = await ethers.getSigners();
+                var singleTicketCount = 1;
+                // ACT
+                var balanceBeforeTicketCreation = await orangeStandSpentTicket.balanceOf(addr1.address);
+                await orangeStandSpentTicket.mint(addr1.address, singleTicketCount);
+                var balanceAfterTicketCreation = await orangeStandSpentTicket.balanceOf(addr1.address);
+                await orangeStandSpentTicket.burn(addr1.address, singleTicketCount);
+                var balanceAfterRedemption = await orangeStandSpentTicket.balanceOf(addr1.address);
+                // ASSERT
+                expect(balanceBeforeTicketCreation).to.equal(0);
+                expect(balanceAfterTicketCreation).to.equal(singleTicketCount);
+                expect(balanceAfterRedemption).to.equal(0);
+            })
+
+            it('Redeem multiple tickets', async function () {
+                // ARRANGE
+                const [owner, addr1, addr2] = await ethers.getSigners();
+                var singleTicketCount = 6;
+                // ACT
+                var balanceBeforeTicketCreation = await orangeStandSpentTicket.balanceOf(addr2.address);
+                await orangeStandSpentTicket.mint(addr2.address, singleTicketCount);
+                var balanceAfterTicketCreation = await orangeStandSpentTicket.balanceOf(addr2.address);
+                await orangeStandSpentTicket.burn(addr2.address, singleTicketCount);
+                var balanceAfterRedemption = await orangeStandSpentTicket.balanceOf(addr2.address);
+                // ASSERT
+                expect(balanceBeforeTicketCreation).to.equal(0);
+                expect(balanceAfterTicketCreation).to.equal(singleTicketCount);
+                expect(balanceAfterRedemption).to.equal(0);
+            })
+        })
     });
 });
