@@ -14,8 +14,8 @@ import "./OrangeStandSpentTicket.sol";
 contract AuctionCoordinator is AccessControl {
   event Erc721AuctionCreation(uint256 auctionId, address item, address originalOwner, uint256 tokenId, uint blockNumber);
   event Erc20AuctionCreation(uint256 auctionId, address item, address originalOwner, uint256 amount, uint blockNumber);
-  event TicketIssued(address owner, uint256 amount, uint blockNumber);
-  event TicketRedeemed(address owner, uint256 amount, uint blockNumber);
+//  event TicketIssued(address owner, uint256 amount, uint blockNumber);
+//  event TicketRedeemed(address owner, uint256 amount, uint blockNumber);
   using Counters for Counters.Counter;
   Counters.Counter private _auctionIds;
   using EnumerableSet for EnumerableSet.UintSet;
@@ -103,6 +103,8 @@ contract AuctionCoordinator is AccessControl {
     auctions[auctionId] = new Auction(auctionId, Item(item), block.timestamp, 
         auctionSpeed, initialBidPrice, originalOwner, bidCost, paymentToken, 
         acTreasuryAddress, settledTicketAddress);
+    OrangeStandTicket(paymentToken).addBurner(address(auctions[auctionId]));
+    OrangeStandSpentTicket(settledTicketAddress).addMinter(address(auctions[auctionId]));
     activeAuctions.add(auctionId);
     return auctionId;
   }
@@ -128,13 +130,13 @@ contract AuctionCoordinator is AccessControl {
     activeAuctions.remove(auctionId);
   }
 
-  function createTickets(uint256 amount, address ownerAddress) public {
+  /*function createTickets(uint256 amount, address ownerAddress) public {
     OrangeStandTicket(paymAddr).mint(ownerAddress, amount);
     emit TicketIssued(ownerAddress, amount, block.number);
-  }
+  }*/
 
-  function redeemTickets(uint256 amount, address ownerAddress) public {
+  /*function redeemTickets(uint256 amount, address ownerAddress) public {
     OrangeStandTicket(paymAddr).burn(ownerAddress, amount);
     emit TicketRedeemed(ownerAddress, amount, block.number);
-  }
+  }*/
 }

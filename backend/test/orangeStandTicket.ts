@@ -44,6 +44,8 @@ describe('OrangeStandTicket tests', function () {
 
         describe('burn()', function () {
             it('Should burn all tickets', async function () {
+                const [owner] = await ethers.getSigners();
+                await orangeStandTicket.addBurner(owner.address);
                 await orangeStandTicket.mint(testAddress3, 1);
                 var balanceAfterMint = await orangeStandTicket.balanceOf(testAddress3);
                 await orangeStandTicket.burn(testAddress3, 1);

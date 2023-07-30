@@ -294,6 +294,7 @@ describe('Auction tests', function () {
                     originalOwnerAddress, bidPrice, paymentTokenAddress, 
                     treasuryAddress, settlementToken);
                 const auctionAddress = await auction.getAddress();
+                await paymentToken.addBurner(auctionAddress);
                 await paymentToken.approve(auctionAddress, bidPrice);
 
                 // ACT
@@ -332,6 +333,7 @@ describe('Auction tests', function () {
                     originalOwnerAddress, bidPrice, paymentTokenAddress, 
                     treasuryAddress, settlementToken);
                 const auctionAddress = await auction.getAddress();
+                await paymentToken.addBurner(auctionAddress);
                 await paymentToken.approve(auctionAddress, bidPrice);
 
                 // ACT
@@ -350,10 +352,10 @@ describe('Auction tests', function () {
                 var bidderBalanceAfterSettlement = await paymentToken.balanceOf(owner.address);
                 expect(treasuryBalanceBeforeBid).to.equal(0);
                 expect(treasuryBalanceAfterBid).to.equal(0);
-                expect(treasuryBalanceAfterSettlement).to.equal(1);
+                expect(treasuryBalanceAfterSettlement).to.equal(0);
                 expect(originalOwnerBalanceBeforeBid).to.equal(0);
                 expect(originalOwnerBalanceAfterBid).to.equal(0);
-                expect(originalOwnerBalanceAfterSettlement).to.equal(99);
+                expect(originalOwnerBalanceAfterSettlement).to.equal(0);
                 expect(bidderBalanceBeforeBid).to.equal(100);
                 expect(bidderBalanceAfterBid).to.equal(0);
                 expect(bidderBalanceAfterSettlement).to.equal(0);
@@ -385,6 +387,7 @@ describe('Auction tests', function () {
                     originalOwnerAddress, bidPrice, paymentTokenAddress, 
                     treasuryAddress, settlementToken);
                 const auctionAddress = await auction.getAddress();
+                await paymentToken.addBurner(auctionAddress);
                 await paymentToken.approve(auctionAddress, bidPrice);
 
                 // ACT

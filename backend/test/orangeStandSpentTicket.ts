@@ -26,16 +26,20 @@ describe('OrangeStandSpentTicket tests', function () {
 
         describe('mint()', function () {
             it('Should mint one ticket', async function () {
+                const [owner, addr1] = await ethers.getSigners();
                 var initialBalance = await orangeStandSpentTicket.balanceOf(testAddress1);
-                await orangeStandSpentTicket.mint(testAddress1, 1);
+                await orangeStandSpentTicket.addMinter(addr1.address);
+                await orangeStandSpentTicket.connect(addr1).mint(testAddress1, 1);
                 var balanceAfterMint = await orangeStandSpentTicket.balanceOf(testAddress1);
                 expect(initialBalance).to.equal(0);
                 expect(balanceAfterMint).to.equal(1);
             })
 
             it('Should mint no tickets', async function () {
+                const [owner, addr1] = await ethers.getSigners();
                 var initialBalance = await orangeStandSpentTicket.balanceOf(testAddress2);
-                await orangeStandSpentTicket.mint(testAddress2, 0);
+                await orangeStandSpentTicket.addMinter(addr1.address);
+                await orangeStandSpentTicket.connect(addr1).mint(testAddress2, 0);
                 var balanceAfterMint = await orangeStandSpentTicket.balanceOf(testAddress2);
                 expect(initialBalance).to.equal(0);
                 expect(balanceAfterMint).to.equal(0);
@@ -44,6 +48,8 @@ describe('OrangeStandSpentTicket tests', function () {
 
         describe('burn()', function () {
             it('Should burn all tickets', async function () {
+                const [owner] = await ethers.getSigners();
+                await orangeStandSpentTicket.addMinter(owner.address);
                 await orangeStandSpentTicket.mint(testAddress3, 1);
                 var balanceAfterMint = await orangeStandSpentTicket.balanceOf(testAddress3);
                 await orangeStandSpentTicket.burn(testAddress3, 1);
