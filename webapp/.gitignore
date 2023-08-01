@@ -10,6 +10,10 @@
 
 # production
 /build
+/src/abi
+/public/deployed_contracts.json
+/public/erc20tokens.json
+/public/erc721tokens.json
 
 # misc
 .DS_Store
