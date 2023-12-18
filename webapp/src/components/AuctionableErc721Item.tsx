@@ -1,6 +1,6 @@
 import React, {useEffect, useState } from 'react';
-import { ERC721ABI as erc721Abi} from 'abi/ERC721ABI'
-import { AuctionCoordinator as auctionCoordinatorAbi} from 'abi/AuctionCoordinator'
+import { ERC721ABI as erc721Abi} from '../abi/ERC721ABI'
+import { AuctionCoordinator as auctionCoordinatorAbi} from '../abi/AuctionCoordinator'
 import {ethers} from 'ethers'
 import {
     Popover,
@@ -18,7 +18,9 @@ import {
     Button,
     Image,
     Stack,
+    Spinner,
     Divider,
+    useDisclosure,
   } from '@chakra-ui/react'
 import { Heading, Box } from "@chakra-ui/layout"
 
@@ -27,11 +29,13 @@ interface Props {
     iteration: number;
     auctionCoordinatorContract: string;
     orangeStandTicketAddress: string;
+    orangeStandSpentTicketAddress: string;
 }
 
 declare let window: any;
 
 export default function AuctionableErc721Item(props:Props){
+    const { isOpen, onOpen, onClose } = useDisclosure()
     const addressContract = props.addressContract
     const iteration = props.iteration
     const auctionCoordinatorContract = props.auctionCoordinatorContract
@@ -49,7 +53,7 @@ export default function AuctionableErc721Item(props:Props){
     useEffect(()=>{
       if(addressContract == undefined) return
   
-      const provider = new ethers.providers.Web3Provider(window.ethereum)
+      const provider = new ethers.BrowserProvider(window.ethereum)
       const erc721 = new ethers.Contract(addressContract, erc721Abi, provider)
 
       const createItem = async () => {
@@ -72,20 +76,22 @@ export default function AuctionableErc721Item(props:Props){
     }
   
     async function createAuction(){
-      const provider = new ethers.providers.Web3Provider(window.ethereum)
-      const signer = provider.getSigner()
+      const provider = new ethers.BrowserProvider(window.ethereum)
+      const signer = await provider.getSigner()
 
       const auctionCoordinator = new ethers.Contract(auctionCoordinatorContract, auctionCoordinatorAbi, signer);
       const erc721 = new ethers.Contract(addressContract, erc721Abi, signer);
 
-      //await erc721.transferFrom(globalThis.connectedAddress, auctionCoordinatorContract, iteration);
       await erc721.approve(auctionCoordinatorContract, iteration);
-      await auctionCoordinator.createAuction(erc721.address, iteration, 
+      await auctionCoordinator.createErc721Auction((await erc721.getAddress()), iteration, 
         globalThis.connectedAddress, increaseValue, 
         initialValue, 
         props.orangeStandTicketAddress,
-        ethers.utils.parseUnits(costValue.toString(), "ether"));
+        ethers.parseUnits(costValue.toString(), "ether"),
+        props.orangeStandSpentTicketAddress);
     }
+
+    
   
     return (
       <Box  mb={0} p={4} w='100%' borderWidth="2px" borderRadius="lg" borderColor={'#a3c139'}>
@@ -106,6 +112,8 @@ export default function AuctionableErc721Item(props:Props){
               spacing={4}
               align='stretch'>
               <Popover>
+                {({ isOpen, onClose }) => (
+                <>
                   <PopoverTrigger>
                       <Button type="button" w='100%' style={{
                           backgroundColor: '#a3c139'
@@ -162,13 +170,18 @@ export default function AuctionableErc721Item(props:Props){
                           alignContent={'right'}
                           justifyContent='flex-end'
                           pb={4}>
-                            <Button disabled={buttonDisabled} colorScheme='blue' onClick={createAuction} style={{
+                            <Button disabled={buttonDisabled} colorScheme='blue' onClick={() => {
+                              createAuction()
+                              onClose()
+                            }} style={{
                   backgroundColor: '#a3c139',
                   color: 'black'
                 }}>Start auction</Button>
                       </PopoverBody>
                       <PopoverFooter>All auctions will have a 10 minute bidding period</PopoverFooter>
                   </PopoverContent>
+                  </>
+                )}
               </Popover>
             </Stack>
           </Box>

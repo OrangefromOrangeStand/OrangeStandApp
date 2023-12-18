@@ -1,5 +1,6 @@
 pragma solidity >=0.8.0 <0.9.0;
 
+//SPDX-License-Identifier: MIT
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
@@ -15,6 +16,7 @@ contract OrangeStandTicket is ERC20, Ownable, AccessControl {
     }
 
     function mint(address account, uint256 amount) public onlyOwner {
+    //function mint(address account, uint256 amount) public {
         _mint(account, amount);
         emit TicketIssued(account, amount, block.number);
     }

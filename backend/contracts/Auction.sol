@@ -6,7 +6,6 @@ import "./Item.sol";
 import "./OrangeStandTicket.sol";
 import "./OrangeStandSpentTicket.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-//import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 
 contract Auction is Ownable {
@@ -108,7 +107,7 @@ contract Auction is Ownable {
     return _activePrice;
   }
 
-  function makeNewBid(address newBidAddress) public onlyOwner {
+  function makeNewBid(address newBidAddress) public {
     if (!isFinished()) {
       address oldBidAddress;
       address oldBidder;
@@ -136,14 +135,14 @@ contract Auction is Ownable {
         OrangeStandTicket paymentContract = OrangeStandTicket(_paymentToken);
         uint256 balance = paymentContract.balanceOf(address(this));
         // will have to be modified
-//        paymentContract.transfer(getOriginalOwner(), (balance * 99) / 100);
-//        paymentContract.transfer(_treasuryAddress, (balance * 1) / 100);
+        paymentContract.transfer(getOriginalOwner(), (balance * 99) / 100);
+        paymentContract.transfer(_treasuryAddress, (balance * 1) / 100);
 
         // new code to be used
         paymentContract.burn(address(this), balance);
         OrangeStandSpentTicket settledContract = OrangeStandSpentTicket(_settlementToken);
-//        settledContract.mint(getOriginalOwner(), (balance * 99) / 100);
-//        settledContract.mint(_treasuryAddress, (balance * 1) / 100);
+        settledContract.mint(getOriginalOwner(), (balance * 99) / 100);
+        settledContract.mint(_treasuryAddress, (balance * 1) / 100);
       }
       Bid finalBid = Bid(_activeBid);
       address bidderAddress = getOriginalOwner();

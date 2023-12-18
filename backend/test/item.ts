@@ -5,10 +5,10 @@ import { Contract } from 'ethers';
 describe('Item tests', function () {
     
     let item: Contract;
-
+    
     describe('Item', function () {
         const contractAddress = process.env.CONTRACT_ADDRESS;
-        const itemId = 3;
+        //const itemId = 3;
         const testAddress1 = '0xE5C1E03225Af47391E51b79D6D149987cde5B222';
         const testAddress2 = '0xD336C41f8b1494a7289D39d8De4aADB3792d8515';
 
@@ -149,6 +149,14 @@ describe('Item tests', function () {
                 expect(tokenAddress2).to.equal(testAddress2);
                 expect(tokenQuantity2).to.equal(itemQuantity2);
             })
+
+            it('Only owner can add ERC20 tokens', async function () {
+                const [_, nonOwnerCaller] = await ethers.getSigners();
+                const Item = await ethers.getContractFactory('Item');
+                item = await Item.deploy()
+                var itemQuantity = 10;
+                await expect(item.connect(nonOwnerCaller).addErc20(testAddress1, itemQuantity)).to.be.reverted;
+            })
         });
 
         describe('addErc721()', function () {
@@ -234,6 +242,44 @@ describe('Item tests', function () {
                 expect(tokenAddress2).to.equal(testAddress2);
                 expect(tokenId2).to.equal(tokenNum2);
             })
+
+            it('Only owner can add ERC721 tokens', async function () {
+                const [_, nonOwnerCaller] = await ethers.getSigners();
+                const Item = await ethers.getContractFactory('Item');
+                item = await Item.deploy();
+                var tokenNum = 2;
+                await expect(item.connect(nonOwnerCaller).addErc721(testAddress1, tokenNum)).to.be.reverted;
+            })
         });
+    });
+
+    describe('SingleErc20Item', function () {
+        it('TokenAddress and quantity should be correct', async function () {
+            const SingleErc20Item = await ethers.getContractFactory('SingleErc20Item');
+            let address = '0xE5C1E03225Af47391E51b79D6D149987cde5B222';
+            let quantity = 20;
+            var singleErc20Item = await SingleErc20Item.deploy(address, quantity);
+
+            var returnedTokenAddress = await singleErc20Item.getTokenAddress();
+            var returnedQuantity = await singleErc20Item.getQuantity();
+
+            expect(returnedTokenAddress).to.equal(address);
+            expect(returnedQuantity).to.equal(quantity);
+        })
+    });
+
+    describe('SingleErc721Item', function () {
+        it('TokenAddress and id should be correct', async function () {
+            const SingleErc721Item = await ethers.getContractFactory('SingleErc721Item');
+            let address = '0xE5C1E03225Af47391E51b79D6D149987cde5B222';
+            let id = 13;
+            var singleErc721Item = await SingleErc721Item.deploy(address, id);
+
+            var returnedTokenAddress = await singleErc721Item.getTokenAddress();
+            var returnedId = await singleErc721Item.getTokenId();
+
+            expect(returnedTokenAddress).to.equal(address);
+            expect(returnedId).to.equal(id);
+        })
     });
 });

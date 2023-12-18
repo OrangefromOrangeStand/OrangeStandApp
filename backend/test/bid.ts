@@ -3,8 +3,6 @@ import { expect } from 'chai';
 import { Contract } from 'ethers';
 
 describe('Bid contract', function () {
-    this.timeout(180000);
-
     let bid: Contract;
 
     describe('Bid', function () {

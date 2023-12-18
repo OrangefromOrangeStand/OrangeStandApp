@@ -18,7 +18,7 @@ export default function Header() {
   const [numBidsMade, _setNumBidsMade] = useState<number>(0);
   const [numSettledTransactions, setNumSettledTransactions] = useState<number>(0);
   const [numSellingItems, setNumSellingItems] = useState<number>(0);
-  const [provider, setProvider] = useState<ethers.providers.Web3Provider|undefined>(undefined);
+  const [provider, setProvider] = useState<ethers.BrowserProvider|undefined>(undefined);
 
   const numBidsMadeRef = React.useRef(numBidsMade);
   const setNumBidsMade = (data: number) => {
@@ -32,13 +32,20 @@ export default function Header() {
     _setActiveAuctionRenderingList(data);
   };
 
+  const listenMMAccount = async () => {
+    window.ethereum.on("accountsChanged", async function() {
+      onClickDisconnect();
+      onClickConnect();
+    });
+  }
+
   const onClickConnect = () => {
     //client side code
     if(!window.ethereum) {
       console.log("please install MetaMask")
       return
     }
-    
+
     //change from window.ethereum.enable() which is deprecated
     //see docs: https://docs.metamask.io/guide/ethereum-provider.html#legacy-methods
     window.ethereum.request({ method: 'eth_requestAccounts' })
@@ -50,7 +57,7 @@ export default function Header() {
     .catch('error',console.error)
 
     //we can do it using ethers.js
-    const providerVal = new ethers.providers.Web3Provider(window.ethereum)
+    const providerVal = new ethers.BrowserProvider(window.ethereum)
     setProvider(providerVal)
     
     // MetaMask requires requesting permission to connect users accounts
@@ -68,6 +75,8 @@ export default function Header() {
     setActiveAccount(undefined)
     setActiveAuctionRenderingList([]);
   }
+
+  listenMMAccount();
 
   return (
     <SimpleGrid columns={1} style={{

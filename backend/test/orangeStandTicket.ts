@@ -40,6 +40,11 @@ describe('OrangeStandTicket tests', function () {
                 expect(initialBalance).to.equal(0);
                 expect(balanceAfterMint).to.equal(0);
             })
+
+            it('Only owner can mint tokens', async function () {
+                const [_, nonOwnerCaller] = await ethers.getSigners();
+                await expect(orangeStandTicket.connect(nonOwnerCaller).mint(testAddress1, 1)).to.be.reverted;
+            })
         });
 
         describe('burn()', function () {
@@ -52,34 +57,6 @@ describe('OrangeStandTicket tests', function () {
                 var balanceAfterBurn = await orangeStandTicket.balanceOf(testAddress3);
                 expect(balanceAfterMint).to.equal(1);
                 expect(balanceAfterBurn).to.equal(0);
-            })
-        });
-
-        describe('createTickets()', function () {
-            it('Create single ticket', async function () {
-                // ARRANGE
-                const [owner, addr1] = await ethers.getSigners();
-                var singleTicketCount = 1;
-                // ACT
-                var balanceBeforeTicketCreation = await orangeStandTicket.balanceOf(addr1.address);
-                await orangeStandTicket.mint(addr1.address, singleTicketCount);
-                var balanceAfterTicketCreation = await orangeStandTicket.balanceOf(addr1.address);
-                // ASSERT
-                expect(balanceBeforeTicketCreation).to.equal(0);
-                expect(balanceAfterTicketCreation).to.equal(singleTicketCount);
-            })
-
-            it('Create multiple tickets', async function () {
-                // ARRANGE
-                const [owner, addr1, addr2] = await ethers.getSigners();
-                var singleTicketCount = 7;
-                // ACT
-                var balanceBeforeTicketCreation = await orangeStandTicket.balanceOf(addr2.address);
-                await orangeStandTicket.mint(addr2.address, singleTicketCount);
-                var balanceAfterTicketCreation = await orangeStandTicket.balanceOf(addr2.address);
-                // ASSERT
-                expect(balanceBeforeTicketCreation).to.equal(0);
-                expect(balanceAfterTicketCreation).to.equal(singleTicketCount);
             })
         });
     });

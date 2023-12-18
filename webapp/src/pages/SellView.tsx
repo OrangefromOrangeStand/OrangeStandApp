@@ -3,15 +3,15 @@ import { Heading, Box } from "@chakra-ui/layout"
 import { SimpleGrid } from '@chakra-ui/react'
 import { useState, useEffect} from 'react'
 import { ethers } from "ethers"
-import { ERC20ABI as erc20abi} from 'abi/ERC20ABI'
+import { ERC20ABI as erc20abi} from '../abi/ERC20ABI'
 import deployedContracts from '../../public/deployed_contracts.json';
 import enabledErc721Contracts from '../../public/erc721tokens.json';
 import enabledErc20Contracts from '../../public/erc20tokens.json';
-import { ERC721ABI as erc721Abi} from 'abi/ERC721ABI'
+import { ERC721ABI as erc721Abi} from '../abi/ERC721ABI'
 import React from 'react';
-import AuctionableErc721Item from 'components/AuctionableErc721Item'
-import AuctionableErc20Item from 'components/AuctionableErc20Item'
-import { AuctionCoordinator as auctionCoordinatorAbi} from 'abi/AuctionCoordinator'
+import AuctionableErc721Item from '../components/AuctionableErc721Item'
+import AuctionableErc20Item from '../components/AuctionableErc20Item'
+import { AuctionCoordinator as auctionCoordinatorAbi} from '../abi/AuctionCoordinator'
 import { useToast } from '@chakra-ui/react'
 import { Contract } from 'ethers'
 
@@ -22,7 +22,7 @@ interface Props {
   numSettledTransactions: number;
   numSellingItems: number;
   setNumSellingItems: React.Dispatch<React.SetStateAction<number>>;
-  provider: ethers.providers.Web3Provider | undefined;
+  provider: ethers.BrowserProvider | undefined;
 }
 
 export default function SellView(props:Props) {
@@ -30,6 +30,7 @@ export default function SellView(props:Props) {
   const [erc20RenderingList, _setErc20RenderingList] = useState<any[]>([]);
   let auctionCoordinatorContract = deployedContracts["auctionCoordinator"];
   let orangeStandTicketAddress = deployedContracts["orangeStandTicketAddress"];
+  let orangeStandSpentTicketAddress = deployedContracts["orangeStandSpentTicketAddress"];
   let startingBlockNumber = 0;
   const [auctionCoordinator, setAuctionCoordinator] = useState<Contract|null>(null);
 
@@ -54,9 +55,9 @@ export default function SellView(props:Props) {
       setErc20RenderingList([]);
       return
     }
-    const provider = new ethers.providers.Web3Provider(window.ethereum)
+    const provider = new ethers.BrowserProvider(window.ethereum)
     if(auctionCoordinator == null){
-      setAuctionCoordinator(new ethers.Contract(auctionCoordinatorContract, auctionCoordinatorAbi, provider.getSigner()));
+      setAuctionCoordinator(new ethers.Contract(auctionCoordinatorContract, auctionCoordinatorAbi, provider));
     }
   },[auctionCoordinatorContract,auctionCoordinator])
 
@@ -67,7 +68,7 @@ export default function SellView(props:Props) {
       return
     }
     const populateAuctions = async () => {
-      const provider = new ethers.providers.Web3Provider(window.ethereum)
+      const provider = new ethers.BrowserProvider(window.ethereum)
       
       var erc721List: any[] = [];
       for (let erc721Token in enabledErc721Contracts) {
@@ -96,19 +97,15 @@ export default function SellView(props:Props) {
         auctionCoordinator.removeAllListeners("Erc20AuctionCreation");
         auctionCoordinator.removeAllListeners("Erc721AuctionCreation");
       }
-
-      provider.once("block", (blockNumber) => {
-        startingBlockNumber = blockNumber;
-        if(auctionCoordinator == null){
-          let newAuctionCoordinator = new ethers.Contract(auctionCoordinatorContract, auctionCoordinatorAbi, provider.getSigner());
-          newAuctionCoordinator.on("Erc20AuctionCreation", erc20AuctionCreationListener);
-          newAuctionCoordinator.on("Erc721AuctionCreation", erc721AuctionCreationListener);
-          setAuctionCoordinator(newAuctionCoordinator);
-        } else {
-          auctionCoordinator.on("Erc20AuctionCreation", erc20AuctionCreationListener);
-          auctionCoordinator.on("Erc721AuctionCreation", erc721AuctionCreationListener);
-        }
-      })
+      if(auctionCoordinator == null){
+        let newAuctionCoordinator = new ethers.Contract(auctionCoordinatorContract, auctionCoordinatorAbi, provider);
+        setAuctionCoordinator(newAuctionCoordinator);
+        newAuctionCoordinator.on("Erc20AuctionCreation", erc20AuctionCreationListener);
+        newAuctionCoordinator.on("Erc721AuctionCreation", erc721AuctionCreationListener);
+      } else {
+        auctionCoordinator.on("Erc20AuctionCreation", erc20AuctionCreationListener);
+        auctionCoordinator.on("Erc721AuctionCreation", erc721AuctionCreationListener);
+      }
     }
     populateAuctions();
   },[props.activeAccount,props.numSellingItems,props.numSettledTransactions])
@@ -120,14 +117,10 @@ export default function SellView(props:Props) {
       addAuctionItemToEnd({id: +auctionId, num: +auctionId});
       toast({
         title: "You've created a new auction",
-        //description: "New auction has been created " + auctionId + " and " + tokenId,
         status: 'success',
         duration: 5000,
         variant: 'subtle',
         isClosable: true,
-        /*containerStyle: {
-          backgroundColor: 'red'
-        },*/
       })
     }
   }
@@ -153,37 +146,32 @@ export default function SellView(props:Props) {
       addAuctionItemToEnd({id: +auctionId, num: +auctionId});
       toast({
         title: "You've created a new auction",
-        //description: "New auction has been created " + auctionId + " for " + deductedTokens + " SIM",
         status: 'success',
         duration: 5000,
         variant: 'subtle',
         isClosable: true,
-        /*containerStyle: {
-          background: 'red',
-          backgroundColor: '#fef1df'
-        },*/
       })
     }
   }
 
   async function getErc721List(erc721: ethers.Contract, account: string, startingIndex: number){
     var returnVal = [];
-    let balance = await erc721.balanceOf(account);
+    let balance = Number(await erc721.balanceOf(account));
     for(var i = 0; i < balance; i++){
-      let tokenId = await erc721.tokenOfOwnerByIndex(account, i);
+      let tokenId = Number(await erc721.tokenOfOwnerByIndex(account, i));
       let index = i + startingIndex;
-      returnVal.push({tokenId: +tokenId, address: erc721.address, index: index});
+      returnVal.push({tokenId: +tokenId, address: (await erc721.getAddress()), index: index});
     }
     return returnVal;
   }
 
   async function getErc20List(erc20: ethers.Contract, account: string){
     var returnVal = [];
-    let balance = await erc20.balanceOf(account);
+    let balance = Number(await erc20.balanceOf(account));
     let symbol = await erc20.symbol();
-    let decPlaces = await erc20.decimals();
+    let decPlaces = Number(await erc20.decimals());
     let formattedBalance = (balance / (10 ** decPlaces));
-    returnVal = [{bal: +balance, sym: symbol, dec: +decPlaces, formattedBalance: +formattedBalance, address: erc20.address}];
+    returnVal = [{bal: +balance, sym: symbol, dec: +decPlaces, formattedBalance: +formattedBalance, address: (await erc20.getAddress())}];
     return returnVal;
   }
   return (
@@ -197,6 +185,7 @@ export default function SellView(props:Props) {
               iteration={product.tokenId} 
               auctionCoordinatorContract={auctionCoordinatorContract}
               orangeStandTicketAddress={orangeStandTicketAddress}
+              orangeStandSpentTicketAddress={orangeStandSpentTicketAddress}
               />
             ))}
         {erc20RenderingList.map((product, k) => (
@@ -207,6 +196,7 @@ export default function SellView(props:Props) {
               formattedBalance={product.formattedBalance}
               auctionCoordinatorContract={auctionCoordinatorContract}
               orangeStandTicketAddress={orangeStandTicketAddress}
+              orangeStandSpentTicketAddress={orangeStandSpentTicketAddress}
               provider={props.provider}
               />
             ))}

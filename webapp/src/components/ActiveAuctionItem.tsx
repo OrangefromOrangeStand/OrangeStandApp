@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { ERC721ABI as erc721Abi } from 'abi/ERC721ABI'
-import { ERC20ABI as erc20Abi } from 'abi/ERC20ABI'
-import { AuctionCoordinator as auctionCoordinatorAbi } from 'abi/AuctionCoordinator'
-import { Auction as auctionAbi } from 'abi/Auction'
-import { Bid as bidAbi } from 'abi/Bid'
-import { Item as itemAbi } from 'abi/Item'
-import { SingleErc20ItemABI as singleErc20ItemAbi } from 'abi/SingleErc20ItemABI'
-import { SingleErc721ItemABI as singleErc721ItemAbi } from 'abi/SingleErc721ItemABI'
+import { ERC721ABI as erc721Abi } from '../abi/ERC721ABI'
+import { ERC20ABI as erc20Abi } from '../abi/ERC20ABI'
+import { AuctionCoordinator as auctionCoordinatorAbi } from '../abi/AuctionCoordinator'
+import { Auction as auctionAbi } from '../abi/Auction'
+import { Bid as bidAbi } from '../abi/Bid'
+import { Item as itemAbi } from '../abi/Item'
+import { SingleErc721Item as singleErc721ItemAbi } from '../abi/SingleErc721Item'
+import { SingleErc20Item as singleErc20ItemAbi } from '../abi/SingleErc20Item'
 import { ethers } from 'ethers'
 import { Button } from '@chakra-ui/react'
 import { Image } from '@chakra-ui/react'
@@ -64,14 +64,14 @@ export default function ActiveAuctionItem(props:Props){
 
     let [currentProvider, _setCurrentProvider] = useState<any>(null);
     const currentProviderRef = React.useRef(currentProvider);
-    const setCurrentProvider = (data: ethers.providers.Web3Provider) => {
+    const setCurrentProvider = (data: ethers.BrowserProvider) => {
       currentProviderRef.current = data;
       _setCurrentProvider(data);
     };
 
     const toast = useToast()
 
-    async function populateErc721Item(item: ethers.Contract, provider: ethers.providers.Web3Provider) {
+    async function populateErc721Item(item: ethers.Contract, provider: ethers.BrowserProvider) {
       let singleErc721Address = await item.getErc721Item(1);
       const singleErc721 = new ethers.Contract(singleErc721Address, singleErc721ItemAbi, provider);
       let tokenId = await singleErc721.getTokenId();
@@ -121,7 +121,7 @@ export default function ActiveAuctionItem(props:Props){
       setIntervalId(newIntervalId);
     }
 
-    async function populateErc20Item(item: ethers.Contract, provider: ethers.providers.Web3Provider) {
+    async function populateErc20Item(item: ethers.Contract, provider: ethers.BrowserProvider) {
       let singleErc20Address = await item.getErc20Item(1);
       const singleErc20 = new ethers.Contract(singleErc20Address, singleErc20ItemAbi, provider);
       let erc20Address = await singleErc20.getTokenAddress();
@@ -130,12 +130,12 @@ export default function ActiveAuctionItem(props:Props){
       let sym = await erc20.symbol();
       let decPlaces = await erc20.decimals();
       return {
-        headingText: (+quantity / (10 ** decPlaces)) + " " + sym,
+        headingText: (Number(quantity) / (10 ** Number(decPlaces))) + " " + sym,
         imageUri: sym+'.png'
       }
     }
 
-    async function handleFinishedAuction(activeBid: ethers.Contract, provider: ethers.providers.Web3Provider, activeAuction: ethers.Contract){
+    async function handleFinishedAuction(activeBid: ethers.Contract, provider: ethers.BrowserProvider, activeAuction: ethers.Contract){
       var buttonText = "";
       var timeLeft = "";
       var progressValue = 100;
@@ -178,36 +178,36 @@ export default function ActiveAuctionItem(props:Props){
       };
     }
 
-    async function handleActiveAuction(auction: ethers.Contract, activeBid: ethers.Contract, provider: ethers.providers.Web3Provider){
+    async function handleActiveAuction(auction: ethers.Contract, activeBid: ethers.Contract, provider: ethers.BrowserProvider){
       var currentPrice = 0;
       var buttonText = "Claim item";
       if(activeBid.toString() != '0x0000000000000000000000000000000000000000'){
         const bid = new ethers.Contract(activeBid.toString(), bidAbi, provider);
-        currentPrice = await bid.getBidPrice();
+        currentPrice = Number(await bid.getBidPrice());
         
         const bidderAddress = await bid.getBidderAddress();
         if(props.currentAccount != undefined && bidderAddress.toLowerCase() === props.currentAccount.toLowerCase()){
           buttonText = "You're currently the highest bidder";
         }
       } else {
-        currentPrice = await auction.getInitialPrice();
+        currentPrice = Number(await auction.getInitialPrice());
       }
       let priceIncrease = await auction.getCycleDuration();
-      var nextPrice = +currentPrice + +priceIncrease;
+      var nextPrice = Number(currentPrice) + Number(priceIncrease);
       
-      let costOfMakingBid = ethers.utils.formatEther(await auction.getPriceIncrease());
+      let costOfMakingBid = ethers.formatEther(await auction.getPriceIncrease());
       updatePriceIncrease(costOfMakingBid);
       updateStatusText("Cost to claim: " + costOfMakingBid);
       
       const {progressionValue, formattedTimeLeft} = await calculateTimeLeft(auction);
       var timeLeftAsString = "Time remaining: "+formattedTimeLeft;
-      const signer = provider.getSigner();
+      const signer = await provider.getSigner();
       const erc20 = new ethers.Contract(props.paymentContract, erc20Abi, signer);
       let paymentTokenBalance = 0;
       if(props.currentAccount != undefined){
-        paymentTokenBalance = await erc20.balanceOf(props.currentAccount);
+        paymentTokenBalance = Number(await erc20.balanceOf(props.currentAccount));
       }
-      let decimalPlaces = await erc20.decimals();
+      let decimalPlaces = Number(await erc20.decimals());
 
       return{
         currentPrice: +currentPrice,
@@ -221,9 +221,9 @@ export default function ActiveAuctionItem(props:Props){
     }
 
     async function calculateTimeLeft(auction: ethers.Contract){
-      let cycleStartTime = await auction.getCurrentCycleStartTime();
-      let cycleEndTime = await auction.getCurrentCycleEndTime();
-      let currentBlockTime = await auction.getCurrentBlockTime();
+      let cycleStartTime = Number(await auction.getCurrentCycleStartTime());
+      let cycleEndTime = Number(await auction.getCurrentCycleEndTime());
+      let currentBlockTime = Number(await auction.getCurrentBlockTime());
       var currentBlock = new Date(currentBlockTime * 1000);
       var start = new Date(cycleStartTime * 1000);
       var end = new Date(cycleEndTime * 1000);
@@ -242,7 +242,7 @@ export default function ActiveAuctionItem(props:Props){
     useEffect(()=>{
       if(!window.ethereum) return
   
-      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      const provider = new ethers.BrowserProvider(window.ethereum);
       const auctionCoordinator = new ethers.Contract(props.auctionCoordinatorContract, auctionCoordinatorAbi, provider);
       setCurrentProvider(provider);
 
@@ -270,7 +270,7 @@ export default function ActiveAuctionItem(props:Props){
         let originalOwner = await auction.getOriginalOwner();
         let balanceForPaymentTokens = paymentBalance;
         let winner = '0x00';
-        let bidCost = ethers.utils.formatEther(await auction.getPriceIncrease());
+        let bidCost = ethers.formatEther(await auction.getPriceIncrease());
         if(finished){
           const {buttonText, timeLeft, progressValue, winningBidder} = await handleFinishedAuction(activeBid, provider, auction);
           winner = winningBidder;
@@ -313,8 +313,8 @@ export default function ActiveAuctionItem(props:Props){
     }, [props.currentAccount,props.auctionCoordinatorContract,props.auctionId])
 
     async function bidOnAuction() {
-      const provider = new ethers.providers.Web3Provider(window.ethereum)
-      const signer = provider.getSigner()
+      const provider = new ethers.BrowserProvider(window.ethereum)
+      const signer = await provider.getSigner()
       const auctionCoordinator = new ethers.Contract(props.auctionCoordinatorContract, auctionCoordinatorAbi, signer);
       
       const actionOnAuction = async () => {
@@ -326,20 +326,11 @@ export default function ActiveAuctionItem(props:Props){
           let priceIncrease = await auction.getPriceIncrease();
           let auctionCoordinatorAllowance = await erc20.allowance(props.currentAccount, auctionContract);
           if(auctionCoordinatorAllowance < priceIncrease){
-            await erc20.approve(auctionContract, ethers.constants.MaxUint256);
+            await erc20.approve(auctionContract, ethers.MaxUint256);
           }
           await auctionCoordinator.makeBid(auctionId, globalThis.connectedAddress);
           provider.once("block", (blockNumber) => {
-            let filter = {
-              fromBlock: blockNumber,
-              address: auction.address,
-              topics: [
-                  // the name of the event, parnetheses containing the data type of each event, no spaces
-                  ethers.utils.id("BidUpdate(uint256,address,address,address,address)")
-              ]
-            }
-            auction.once(filter, (auctionId,newBidAddress,oldBidAddress,newBidder,oldBidder) => {
-              console.log("Values: " + newBidAddress + " and "+ oldBidAddress+ "and " + props.currentAccount + " and "+newBidder+" and "+oldBidder);
+            auction.once("BidUpdate(uint256,address,address,address,address)", (auctionId,newBidAddress,oldBidAddress,newBidder,oldBidder) => {
               if(props.currentAccount != undefined && props.currentAccount.toLowerCase() === newBidder.toLowerCase()){
                 toast({
                   title: "You're the highest bidder",
@@ -348,18 +339,7 @@ export default function ActiveAuctionItem(props:Props){
                   duration: 5000,
                   isClosable: true,
                 });
-                  let blockNumber2 = blockNumber + 1;
-                  console.log("Block number 2: " + blockNumber2);
-                  let filter2 = {
-                    fromBlock: blockNumber2,
-                    address: auction.address,
-                    topics: [
-                        // the name of the event, parnetheses containing the data type of each event, no spaces
-                        ethers.utils.id("BidUpdate(uint256,address,address,address,address)")
-                    ]
-                  }
-                  auction.once(filter2, (auctionId2,newBidAddress2,oldBidAddress2,newBidder2,oldBidder2) => {
-                    console.log("Values2: " + newBidAddress2 + " and "+ oldBidAddress2+ "and " + props.currentAccount + " and "+newBidder2+" and "+oldBidder2);
+                  auction.once("BidUpdate(uint256,address,address,address,address)", (auctionId2,newBidAddress2,oldBidAddress2,newBidder2,oldBidder2) => {
                     if(props.currentAccount != undefined && props.currentAccount.toLowerCase() === oldBidder2.toLowerCase()){
                       toast({
                         title: "You're no longer the highest bidder",
@@ -422,7 +402,7 @@ export default function ActiveAuctionItem(props:Props){
             </Progress>
           </Box>
           <Box>{statusText}</Box>
-          <Button disabled={!buttonEnabled} type="button" w='100%' onClick={bidOnAuction} style={{
+          <Button isDisabled={!buttonEnabled} type="button" w='100%' onClick={bidOnAuction} style={{
                   backgroundColor: '#a3c139'
                 }}>{buttonText}</Button>
         </Stack>

@@ -3,60 +3,54 @@ pragma solidity >=0.8.0 <0.9.0;
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
-import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "./Bid.sol";
 import "./Item.sol";
 import "./Auction.sol";
 import "./OrangeStandTicket.sol";
 import "./OrangeStandSpentTicket.sol";
+import "./AuctionTracker.sol";
 
 contract AuctionCoordinator is AccessControl {
   event Erc721AuctionCreation(uint256 auctionId, address item, address originalOwner, uint256 tokenId, uint blockNumber);
   event Erc20AuctionCreation(uint256 auctionId, address item, address originalOwner, uint256 amount, uint blockNumber);
-//  event TicketIssued(address owner, uint256 amount, uint blockNumber);
-//  event TicketRedeemed(address owner, uint256 amount, uint blockNumber);
   using Counters for Counters.Counter;
   Counters.Counter private _auctionIds;
-  using EnumerableSet for EnumerableSet.UintSet;
-  EnumerableSet.UintSet private activeAuctions;
-  mapping(uint256 => Auction) private auctions;
   address private paymAddr;
   address private redemptionAddr;
   address private acTreasuryAddress;
   bytes32 public constant ITEM_OWNER = keccak256("ITEM_OWNER");
   bytes32 public constant ACTIVE_BIDDER = keccak256("ACTIVE_BIDDER");
+  AuctionTracker private auctionTracker;
 
   constructor(address ticketAddress, address trsyAddress, address redemptionTicketAddress){
     paymAddr = ticketAddress;
     acTreasuryAddress = trsyAddress;
     redemptionAddr = redemptionTicketAddress;
+    auctionTracker = new AuctionTracker();
   }
 
-  function getAllActiveAuctions() public view returns (uint256[] memory){
-    return activeAuctions.values();
+  function getAllCategories() public view returns (bytes32[] memory){
+    return auctionTracker.getAllCategories();
+  }
+
+  function getAllActiveAuctions(string memory symbol) public view returns (uint256[] memory){
+    return auctionTracker.getAllActiveAuctions(symbol);
   }
 
   function makeBid(
     uint256 auctionId,
     address bidder
   ) public {
-    Auction auction = Auction(auctions[auctionId]);
-    Bid activeBid = Bid(auction.getActiveBid());
-    uint256 newPrice = auction.getInitialPrice();
-    if(address(activeBid) != address(0x0)){
-      newPrice = activeBid.getBidPrice();
-    }
-    Bid newBid = new Bid(bidder, block.timestamp, address(auction.getItem()), newPrice + auction.getCycleDuration());
-    auction.makeNewBid(address(newBid));
+    auctionTracker.generateBid(auctionId, bidder);
     _grantRole(ACTIVE_BIDDER, bidder);
   }
 
   function getAuction(uint256 auctionId) public view returns (Auction) {
-    return Auction(auctions[auctionId]);
+    return auctionTracker.getAuction(auctionId);
   }
 
-  function createAuction(address erc721Address,
+  function createErc721Auction(address erc721Address,
     uint256 tokenId,
     address originalOwner,
     uint256 auctionSpeed,
@@ -100,26 +94,23 @@ contract AuctionCoordinator is AccessControl {
     _auctionIds.increment();
     uint256 auctionId = _auctionIds.current();
     _grantRole(ITEM_OWNER, originalOwner);
-    auctions[auctionId] = new Auction(auctionId, Item(item), block.timestamp, 
+    Auction auction = new Auction(auctionId, Item(item), block.timestamp, 
         auctionSpeed, initialBidPrice, originalOwner, bidCost, paymentToken, 
         acTreasuryAddress, settledTicketAddress);
-    OrangeStandTicket(paymentToken).addBurner(address(auctions[auctionId]));
-    OrangeStandSpentTicket(settledTicketAddress).addMinter(address(auctions[auctionId]));
-    activeAuctions.add(auctionId);
+    auctionTracker.addToAuction(auctionId, auction);
+    OrangeStandTicket(paymentToken).addBurner(address(auction));
+    OrangeStandSpentTicket(settledTicketAddress).addMinter(address(auction));
+    Item retrievedItem = Item(auction.getItem());
+    auctionTracker.addToActiveAuction(auctionId, retrievedItem);
     return auctionId;
   }
 
-  function settleAuction(
-    uint256 auctionId
-  ) public {
+  function settleAuction(uint256 auctionId) public {
     require(hasRole(ITEM_OWNER, msg.sender) || hasRole(ACTIVE_BIDDER, msg.sender), "Caller is not allowed to settle auction");
-    auctions[auctionId].settle();
-    Item item = auctions[auctionId].getItem();
-    Bid activeBid = auctions[auctionId].getActiveBid();
-    address transferAddress = auctions[auctionId].getOriginalOwner();
-    if(address(activeBid) != address(0x0)){
-        transferAddress = activeBid.getBidderAddress();
-    }
+    Auction auction = getAuction(auctionId);
+    auction.settle();
+    address transferAddress = auctionTracker.getAuctionTransferAddress(auctionId);
+    Item item = auction.getItem();
     if(item.numErc20Tokens() > 0) {
       SingleErc20Item erc20Item = SingleErc20Item(item.getItem(1));
       IERC20(erc20Item.getTokenAddress()).transfer(transferAddress, erc20Item.getQuantity());
@@ -127,16 +118,10 @@ contract AuctionCoordinator is AccessControl {
       SingleErc721Item erc721Item = SingleErc721Item(item.getItem(1));
       IERC721(erc721Item.getTokenAddress()).transferFrom(address(this), transferAddress, erc721Item.getTokenId());
     }
-    activeAuctions.remove(auctionId);
+    auctionTracker.removeAuction(auctionId, item);
   }
 
-  /*function createTickets(uint256 amount, address ownerAddress) public {
-    OrangeStandTicket(paymAddr).mint(ownerAddress, amount);
-    emit TicketIssued(ownerAddress, amount, block.number);
-  }*/
-
-  /*function redeemTickets(uint256 amount, address ownerAddress) public {
-    OrangeStandTicket(paymAddr).burn(ownerAddress, amount);
-    emit TicketRedeemed(ownerAddress, amount, block.number);
-  }*/
+  function getTokenOccurrence() public view returns (TokenOccurrence[] memory){
+    return auctionTracker.getTokenOccurrence();
+  }
 }

@@ -1,6 +1,6 @@
 import React, {useEffect, useState } from 'react';
-import { ERC20ABI as erc20Abi} from 'abi/ERC20ABI'
-import { AuctionCoordinator as auctionCoordinatorAbi} from 'abi/AuctionCoordinator'
+import { ERC20ABI as erc20Abi} from '../abi/ERC20ABI'
+import { AuctionCoordinator as auctionCoordinatorAbi} from '../abi/AuctionCoordinator'
 import {ethers} from 'ethers'
 import {Button} from '@chakra-ui/react'
 import { Stack } from '@chakra-ui/react'
@@ -32,7 +32,8 @@ interface Props {
     balance: number,
     formattedBalance: number,
     orangeStandTicketAddress: string,
-    provider: ethers.providers.Web3Provider | undefined,
+    orangeStandSpentTicketAddress: string,
+    provider: ethers.BrowserProvider | undefined,
 }
 
 declare let window: any;
@@ -56,6 +57,7 @@ export default function AuctionableErc20Item(props:Props){
     //call when currentAccount change
     useEffect(()=>{
       if(connectedAccount == undefined) return
+      var isValueNull = props.provider == null;
       const erc20 = new ethers.Contract(addressContract, erc20Abi, props.provider!)
 
       const createItem = async () => {
@@ -66,9 +68,9 @@ export default function AuctionableErc20Item(props:Props){
     }, [addressContract,connectedAccount])
 
     async function createErc20AuctionItem(erc20: ethers.Contract, account: string | undefined){
-      let bal = await erc20.balanceOf(account);
+      let bal = Number(await erc20.balanceOf(account));
       let sym = await erc20.symbol();
-      let decPlaces = await erc20.decimals();
+      let decPlaces = Number(await erc20.decimals());
       setSymbol(sym);
       setBalance(bal / (10 ** decPlaces));
       setDecimalPlaces(decPlaces);
@@ -78,14 +80,15 @@ export default function AuctionableErc20Item(props:Props){
   
     async function createAuction(){
       let rawAmountValue = +displayAmountValue * (10 ** decimalPlaces);
-      const signer = props.provider!.getSigner()
+      const signer = await props.provider!.getSigner()
 
       const auctionCoordinator = new ethers.Contract(auctionCoordinatorContract, auctionCoordinatorAbi, signer);
       const erc20 = new ethers.Contract(addressContract, erc20Abi, signer);
 
       await erc20.transfer(auctionCoordinatorContract, rawAmountValue.toString());
+      console.log("Auction coordinator contract: " + auctionCoordinatorContract)
       await auctionCoordinator.createErc20Auction(erc20.address, rawAmountValue.toString(), connectedAccount, increaseValue, 
-        initialPrice, props.orangeStandTicketAddress, ethers.utils.parseUnits(costValue.toString(), "ether"));
+        initialPrice, props.orangeStandTicketAddress, ethers.parseUnits(costValue.toString(), "ether"), props.orangeStandSpentTicketAddress);
     }
 
     return (
@@ -107,6 +110,8 @@ export default function AuctionableErc20Item(props:Props){
               spacing={4}
               align='stretch'>
               <Popover>
+                {({ isOpen, onClose }) => (
+                <>
                   <PopoverTrigger>
                       <Button type="button" w='100%' style={{
                           backgroundColor: '#a3c139'
@@ -177,13 +182,18 @@ export default function AuctionableErc20Item(props:Props){
                           alignContent={'right'}
                           justifyContent='flex-end'
                           pb={4}>
-                            <Button colorScheme='blue' onClick={createAuction} style={{
+                            <Button colorScheme='blue' onClick={() => {
+                              createAuction()
+                              onClose()
+                            }} style={{
                   backgroundColor: '#a3c139',
                   color: 'black'
                 }}>Start auction</Button>
                       </PopoverBody>
                       <PopoverFooter>All auctions will have a 10 minute bidding period</PopoverFooter>
                   </PopoverContent>
+                  </>
+                )}
               </Popover>
             </Stack>
           </Box>
