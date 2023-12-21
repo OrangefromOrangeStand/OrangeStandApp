@@ -139,10 +139,10 @@ contract Auction is Ownable {
         paymentContract.transfer(_treasuryAddress, (balance * 1) / 100);
 
         // new code to be used
-        paymentContract.burn(address(this), balance);
+        /*paymentContract.burn(address(this), balance);
         OrangeStandSpentTicket settledContract = OrangeStandSpentTicket(_settlementToken);
         settledContract.mint(getOriginalOwner(), (balance * 99) / 100);
-        settledContract.mint(_treasuryAddress, (balance * 1) / 100);
+        settledContract.mint(_treasuryAddress, (balance * 1) / 100);*/
       }
       Bid finalBid = Bid(_activeBid);
       address bidderAddress = getOriginalOwner();

@@ -42,10 +42,6 @@ contract AuctionTracker is AccessControl, Ownable {
     return tokenOccurrence;
   }
 
-  function addToAuction(uint256 id, Auction auction) public onlyOwner {
-    auctions[id] = auction;
-  }
-
   function getAuction(uint256 id) public view returns (Auction) {
     return auctions[id];
   }
@@ -107,7 +103,13 @@ contract AuctionTracker is AccessControl, Ownable {
     return transferAddress;
   }
 
-  function addToActiveAuction(uint256 auctionId, Item item) public onlyOwner {
+  /*function addToAuction(uint256 id, Auction auction) public onlyOwner {
+    auctions[id] = auction;
+  }*/
+
+  function addActiveAuction(uint256 auctionId, Auction auction) public onlyOwner {
+    auctions[auctionId] = auction;
+    Item item = Item(auction.getItem());
     uint256 numErc20Tokens = item.numErc20Tokens();
     for(uint i = 0; i < numErc20Tokens; i++){
       SingleErc20Item erc20Item = SingleErc20Item(item.getErc20Item(i+1));
@@ -126,6 +128,17 @@ contract AuctionTracker is AccessControl, Ownable {
   }
 
   function removeAuction(uint256 auctionId, Item item) public onlyOwner {
+
+    address transferAddress = getAuctionTransferAddress(auctionId);
+    //Item item = auction.getItem();
+    if(item.numErc20Tokens() > 0) {
+      SingleErc20Item erc20Item = SingleErc20Item(item.getItem(1));
+      IERC20(erc20Item.getTokenAddress()).transfer(transferAddress, erc20Item.getQuantity());
+    } else {
+      SingleErc721Item erc721Item = SingleErc721Item(item.getItem(1));
+      IERC721(erc721Item.getTokenAddress()).transferFrom(address(this), transferAddress, erc721Item.getTokenId());
+    }
+
     uint256 numErc20Tokens = item.numErc20Tokens();
     for(uint i = 0; i < numErc20Tokens; i++){
       SingleErc20Item erc20Item = SingleErc20Item(item.getErc20Item(i+1));

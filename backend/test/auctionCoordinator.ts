@@ -15,7 +15,7 @@ describe('AuctionCoordinator tests', function () {
         const treasuryAddress = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266';
         const settlementToken = '0x198eebe8da4db8a475f9b31c864bf089e550719c';
         const simTokenName = "SIM";
-        const bidPrice = 8;
+        const bidPrice = 800;
         const bidTimeInMinutes = 4;
         let orangeStandTicket: Contract;
         let orangeStandSettlementTicket: Contract;
@@ -737,6 +737,7 @@ describe('AuctionCoordinator tests', function () {
                 await setup();
                 const [owner, addr1, addr2] = await ethers.getSigners();
                 const Auction = await ethers.getContractFactory('Auction');
+                var ticketBalanceForOwnerInitialBalance = await orangeStandTicket.balanceOf(addr1.address);
                 var auctionId = 1;
                 var tokenAmount = 20;
                 var biddingPrice = 1;
@@ -750,20 +751,21 @@ describe('AuctionCoordinator tests', function () {
                 var auctionAddress = await auctionCoordinator.getAuction(auctionId);
                 var auction = await Auction.attach(auctionAddress);
                 await orangeStandTicket.connect(addr2).approve(auctionAddress, bidPrice);
-                await auctionCoordinator.makeBid(auctionId, secondBidder);
+                await auctionCoordinator.makeBid(auctionId, addr2.address);
                 await mine(1000);
                 // ACT
                 await expect(auctionCoordinator.connect(addr2).settleAuction(auctionId))
                     .to.emit(auction, "AuctionSettled")
-                    .withArgs(auctionId, secondBidder, biddingPrice);
-                var ticketBalanceForFinalBidder = await orangeStandTicket.balanceOf(secondBidder);
+                    .withArgs(auctionId, addr2.address, biddingPrice);
+                var ticketBalanceForFinalBidder = await orangeStandTicket.balanceOf(addr2.address);
                 var treasuryBalance = await orangeStandTicket.balanceOf(treasuryAddress);
                 var treasurySettlementBalance = await orangeStandSettlementTicket.balanceOf(treasuryAddress)
                 var ticketBalanceForOwner = await orangeStandTicket.balanceOf(addr1.address);
                 // ASSERT
                 expect(ticketBalanceForFinalBidder).to.equal(0);
+                expect(treasuryBalance).to.equal(bidPrice * 0.01);
                 expect(treasurySettlementBalance).to.equal(0);
-                expect(ticketBalanceForOwner).to.equal(bidPrice);
+                expect(ticketBalanceForOwner - ticketBalanceForOwnerInitialBalance).to.equal(bidPrice * 0.99);
             })
             it('Original owner can settle auction', async function () {
                 // ARRANGE
@@ -937,7 +939,7 @@ describe('AuctionCoordinator tests', function () {
             it('Settle auction with ERC721 auction', async function () {
                 // ARRANGE
                 await setup();
-                const [owner, addr1, addr2] = await ethers.getSigners();
+                const [_, addr1, addr2] = await ethers.getSigners();
                 const Auction = await ethers.getContractFactory('Auction');
                 const LocalCollectible = await ethers.getContractFactory('LocalCollectible');
                 var auctionId = 1;
@@ -946,6 +948,7 @@ describe('AuctionCoordinator tests', function () {
                 const itemAddress = await auctionNft.getAddress();
                 await auctionNft.mintItem(addr1.address, 'QmfVMAmNM1kDEBYrC2TPzQDoCRFH6F5tE1e9Mr4FkkR5Xr');
                 await auctionNft.connect(addr1).approve(await auctionCoordinator.getAddress(), tokenId);
+                var ownerOfItemBeforeSettlement = await auctionNft.ownerOf(tokenId);
                 await auctionCoordinator.createErc721Auction(itemAddress, tokenId, addr1.address,
                     bidTimeInMinutes, biddingPrice, orangeStandTicket, bidPrice, orangeStandSettlementTicket);
                 var auctionAddress = await auctionCoordinator.getAuction(auctionId);
@@ -954,13 +957,12 @@ describe('AuctionCoordinator tests', function () {
                 await auctionCoordinator.makeBid(auctionId, secondBidder);
                 await mine(1000);
                 // ACT
-                var ownerOfItemBeforeSettlement = await auctionNft.ownerOf(tokenId);
                 await expect(auctionCoordinator.connect(addr2).settleAuction(auctionId))
                     .to.emit(auction, "AuctionSettled")
                     .withArgs(auctionId, secondBidder, biddingPrice);
                 var ownerOfItemAfterSettlement = await auctionNft.ownerOf(tokenId);
                 // ASSERT
-                expect(ownerOfItemBeforeSettlement).to.equal(await auctionCoordinator.getAddress());
+                expect(ownerOfItemBeforeSettlement).to.equal(addr1.address);
                 expect(ownerOfItemAfterSettlement).to.equal(secondBidder);
             })
         });

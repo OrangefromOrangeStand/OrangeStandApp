@@ -352,10 +352,10 @@ describe('Auction tests', function () {
                 var bidderBalanceAfterSettlement = await paymentToken.balanceOf(owner.address);
                 expect(treasuryBalanceBeforeBid).to.equal(0);
                 expect(treasuryBalanceAfterBid).to.equal(0);
-                expect(treasuryBalanceAfterSettlement).to.equal(0);
+                expect(treasuryBalanceAfterSettlement).to.equal(1);
                 expect(originalOwnerBalanceBeforeBid).to.equal(0);
                 expect(originalOwnerBalanceAfterBid).to.equal(0);
-                expect(originalOwnerBalanceAfterSettlement).to.equal(0);
+                expect(originalOwnerBalanceAfterSettlement).to.equal(99);
                 expect(bidderBalanceBeforeBid).to.equal(100);
                 expect(bidderBalanceAfterBid).to.equal(0);
                 expect(bidderBalanceAfterSettlement).to.equal(0);

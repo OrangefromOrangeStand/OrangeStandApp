@@ -6,3 +6,6 @@ backend/artifacts/
 backend/cache/
 backend/typechain-types/
 backend/yarn.lock
+*.log
+*.gz
+webapp/.next/cache/webpack/client-development/index.pack.gz.old

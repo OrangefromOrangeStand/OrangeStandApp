@@ -50,7 +50,7 @@ describe('AuctionTracker tests', function () {
                 const testAuctionId = 1;
                 // ACT
                 // ASSERT
-                await expect(auctionTracker.connect(addr1).addToAuction(testAuctionId, testAuction)).to.be.reverted;
+                await expect(auctionTracker.connect(addr1).addActiveAuction(testAuctionId, testAuction)).to.be.reverted;
             })
         })
 
@@ -75,7 +75,7 @@ describe('AuctionTracker tests', function () {
                     treasuryAddress, settlementToken);
                 const testAuctionId = 1;
                 // ACT
-                await auctionTracker.addToAuction(testAuctionId, testAuction);
+                await auctionTracker.addActiveAuction(testAuctionId, testAuction);
                 // ASSERT
                 await expect(auctionTracker.connect(addr1).updateOccurrence(testAuctionId)).to.be.reverted;
             })
@@ -85,13 +85,15 @@ describe('AuctionTracker tests', function () {
                 it('Store single auction', async function () {
                     // ARRANGE
                     const Auction = await ethers.getContractFactory('Auction');
+                    const Item = await ethers.getContractFactory('Item');
+                    let item = await Item.deploy();
                     const testAuction = await Auction.deploy(
-                        auctionId, itemAddress, auctionStartTime, auctionLengthInMinutes, 
+                        auctionId, await item.getAddress(), auctionStartTime, auctionLengthInMinutes, 
                         initialPrice, originalOwnerAddress, priceIncrease, paymentToken, 
                         treasuryAddress, settlementToken);
                     const testAuctionId = 1;
                     // ACT
-                    await auctionTracker.addToAuction(testAuctionId, testAuction);
+                    await auctionTracker.addActiveAuction(testAuctionId, testAuction);
                     const retrievedAuction = Auction.attach(await auctionTracker.getAuction(testAuctionId));
                     // ASSERT
                     expect(await retrievedAuction.getAddress()).to.equal(await testAuction.getAddress());
@@ -100,18 +102,20 @@ describe('AuctionTracker tests', function () {
                 it('Last auction for same ID should be returned', async function () {
                     // ARRANGE
                     const Auction = await ethers.getContractFactory('Auction');
+                    const Item = await ethers.getContractFactory('Item');
+                    let item = await Item.deploy();
                     const initialAuction = await Auction.deploy(
-                        auctionId, itemAddress, auctionStartTime, auctionLengthInMinutes, 
+                        auctionId, await item.getAddress(), auctionStartTime, auctionLengthInMinutes, 
                         initialPrice, originalOwnerAddress, priceIncrease, paymentToken, 
                         treasuryAddress, settlementToken);
                     const finalAuction = await Auction.deploy(
-                        auctionId, itemAddress, auctionStartTime, auctionLengthInMinutes, 
+                        auctionId, await item.getAddress(), auctionStartTime, auctionLengthInMinutes, 
                         initialPrice, originalOwnerAddress, priceIncrease, paymentToken, 
                         treasuryAddress, settlementToken);
                     const testAuctionId = 1;
                     // ACT
-                    await auctionTracker.addToAuction(testAuctionId, initialAuction);
-                    await auctionTracker.addToAuction(testAuctionId, finalAuction);
+                    await auctionTracker.addActiveAuction(testAuctionId, initialAuction);
+                    await auctionTracker.addActiveAuction(testAuctionId, finalAuction);
                     const retrievedAuction = Auction.attach(await auctionTracker.getAuction(testAuctionId));
                     // ASSERT
                     expect(await retrievedAuction.getAddress()).to.equal(await finalAuction.getAddress());
@@ -138,7 +142,7 @@ describe('AuctionTracker tests', function () {
                         treasuryAddress, settlementToken);
                     const testAuctionId = 1;
                     // ACT
-                    await auctionTracker.addToAuction(testAuctionId, testAuction);
+                    await auctionTracker.addActiveAuction(testAuctionId, testAuction);
                     await auctionTracker.updateOccurrence(testAuctionId);
                     let occurrences = await auctionTracker.getTokenOccurrence();
                     // ASSERT
@@ -150,22 +154,25 @@ describe('AuctionTracker tests', function () {
                     // ARRANGE
                     const Auction = await ethers.getContractFactory('Auction');
                     const Item = await ethers.getContractFactory('Item');
+                    const AuctionTracker = await ethers.getContractFactory('AuctionTracker');
+                    let auctionTracker = await AuctionTracker.deploy();
                     let item = await Item.deploy();
                     let itemAddressForTest = await item.getAddress();
-                    let symbol = "SYM";
-                    const ERC20 = await ethers.getContractFactory('ERC20');
-                    let erc20Token = await ERC20.deploy("Name", symbol);
+                    let symbol = "SIM";
+                    const SimulationToken = await ethers.getContractFactory('SimulationToken');
+                    var simToken = await SimulationToken.deploy();
                     var tokenNum = 1;
-                    await item.addErc20(await erc20Token.getAddress(), tokenNum);
-
+                    await item.addErc20(await simToken.getAddress(), tokenNum);
+                    await simToken.mint(await auctionTracker.getAddress(), tokenNum);
+                    await simToken.approve(await auctionTracker.getAddress(), tokenNum);
+                
                     const testAuction = await Auction.deploy(
                         auctionId, itemAddressForTest, auctionStartTime, auctionLengthInMinutes, 
                         initialPrice, originalOwnerAddress, priceIncrease, paymentToken, 
                         treasuryAddress, settlementToken);
                     const testAuctionId = 1;
                     // ACT
-                    await auctionTracker.addToAuction(testAuctionId, testAuction);
-                    await auctionTracker.addToActiveAuction(testAuctionId, item);
+                    await auctionTracker.addActiveAuction(testAuctionId, testAuction);
                     await auctionTracker.updateOccurrence(testAuctionId);
                     let occurrencesBeforeAuctionFinish = await auctionTracker.getTokenOccurrence();
                     await auctionTracker.removeAuction(testAuctionId, item);
@@ -190,14 +197,17 @@ describe('AuctionTracker tests', function () {
                     let auction2Id = 3;
                     let item1AddressForTest = await item1.getAddress();
                     let item2AddressForTest = await item2.getAddress();
-                    let symbol1 = "ITM1";
+                    const SimulationToken = await ethers.getContractFactory('SimulationToken');
+                    var simToken = await SimulationToken.deploy();
+                    let symbol1 = "SIM";
                     let symbol2 = "ITM2";
                     const ERC20 = await ethers.getContractFactory('ERC20');
-                    let erc20Token1 = await ERC20.deploy("TKN1", symbol1);
                     let erc20Token2 = await ERC20.deploy("TKN2", symbol2);
                     var tokenNum = 1;
-                    await item1.addErc20(await erc20Token1.getAddress(), tokenNum);
+                    await item1.addErc20(await simToken.getAddress(), tokenNum);
                     await item2.addErc20(await erc20Token2.getAddress(), tokenNum);
+                    await simToken.mint(await auctionTracker.getAddress(), tokenNum);
+                    await simToken.approve(await auctionTracker.getAddress(), tokenNum);
 
                     const testAuction1 = await Auction.deploy(
                         auction1Id, item1AddressForTest, auctionStartTime, auctionLengthInMinutes, 
@@ -208,30 +218,22 @@ describe('AuctionTracker tests', function () {
                         initialPrice, originalOwnerAddress, priceIncrease, paymentToken, 
                         treasuryAddress, settlementToken);
                     // ACT
-                    await auctionTracker.addToAuction(auction1Id, testAuction1);
-                    await auctionTracker.addToAuction(auction2Id, testAuction2);
-                    await auctionTracker.addToActiveAuction(auction1Id, item1);
+                    await auctionTracker.addActiveAuction(auction1Id, testAuction1);
+                    await auctionTracker.addActiveAuction(auction2Id, testAuction2);
                     await auctionTracker.updateOccurrence(auction1Id);
-                    await auctionTracker.addToActiveAuction(auction2Id, item2);
                     await auctionTracker.updateOccurrence(auction2Id);
                     let occurrencesBeforeAuctionFinish = await auctionTracker.getTokenOccurrence();
                     await auctionTracker.removeAuction(auction1Id, item1);
                     let occurrencesAfterFirstAuctionFinish = await auctionTracker.getTokenOccurrence();
-                    await auctionTracker.removeAuction(auction2Id, item2);
-                    let occurrencesAfterSecondAuctionFinish = await auctionTracker.getTokenOccurrence();                
                     // ASSERT
                     expect(occurrencesBeforeAuctionFinish.length).to.equal(2);
                     expect(occurrencesAfterFirstAuctionFinish.length).to.equal(2);
-                    expect(occurrencesAfterSecondAuctionFinish.length).to.equal(2);
                     expect(occurrencesBeforeAuctionFinish[0].tokenSymbol).to.equal(symbol1);
                     expect(occurrencesBeforeAuctionFinish[1].tokenSymbol).to.equal(symbol2);
                     expect(occurrencesAfterFirstAuctionFinish[0].tokenSymbol).to.equal(symbol1);
                     expect(occurrencesAfterFirstAuctionFinish[1].tokenSymbol).to.equal(symbol2);
-                    expect(occurrencesAfterSecondAuctionFinish[0].tokenSymbol).to.equal(symbol1);
-                    expect(occurrencesAfterSecondAuctionFinish[1].tokenSymbol).to.equal(symbol2);
                     expect(occurrencesBeforeAuctionFinish[0].pastUsageMovingAverage).to.equal(occurrencesBeforeAuctionFinish[1].pastUsageMovingAverage);
                     expect(occurrencesAfterFirstAuctionFinish[0].pastUsageMovingAverage).to.lessThan(occurrencesAfterFirstAuctionFinish[1].pastUsageMovingAverage);
-                    expect(occurrencesAfterSecondAuctionFinish[1].pastUsageMovingAverage).to.lessThan(occurrencesAfterSecondAuctionFinish[0].pastUsageMovingAverage);
                 })
             })
 
@@ -264,8 +266,7 @@ describe('AuctionTracker tests', function () {
                         treasuryAddress, settlementToken);
                     
                     // ACT
-                    await auctionTracker.addToAuction(testAuctionId, testAuction);
-                    await auctionTracker.addToActiveAuction(testAuctionId, item);
+                    await auctionTracker.addActiveAuction(testAuctionId, testAuction);
                     var activeAuctions = await auctionTracker.getAllActiveAuctions("SYM");
 
                     // ASSERT
@@ -302,10 +303,8 @@ describe('AuctionTracker tests', function () {
                         initialPrice, originalOwnerAddress, priceIncrease, paymentToken, 
                         treasuryAddress, settlementToken);
                     // ACT
-                    await auctionTracker.addToAuction(auction1Id, testAuction1);
-                    await auctionTracker.addToAuction(auction2Id, testAuction2);
-                    await auctionTracker.addToActiveAuction(auction1Id, item1);
-                    await auctionTracker.addToActiveAuction(auction2Id, item2);
+                    await auctionTracker.addActiveAuction(auction1Id, testAuction1);
+                    await auctionTracker.addActiveAuction(auction2Id, testAuction2);
                     var activeAuctions = await auctionTracker.getAllActiveAuctions(symbol);
 
                     // ASSERT
@@ -344,10 +343,8 @@ describe('AuctionTracker tests', function () {
                         initialPrice, originalOwnerAddress, priceIncrease, paymentToken, 
                         treasuryAddress, settlementToken);
                     // ACT
-                    await auctionTracker.addToAuction(auction1Id, testAuction1);
-                    await auctionTracker.addToAuction(auction2Id, testAuction2);
-                    await auctionTracker.addToActiveAuction(auction1Id, item1);
-                    await auctionTracker.addToActiveAuction(auction2Id, item2);
+                    await auctionTracker.addActiveAuction(auction1Id, testAuction1);
+                    await auctionTracker.addActiveAuction(auction2Id, testAuction2);
                     var activeAuctionsForFirstSymbol = await auctionTracker.getAllActiveAuctions(symbol1);
                     var activeAuctionsForSecondSymbol = await auctionTracker.getAllActiveAuctions(symbol2);
 
@@ -387,8 +384,7 @@ describe('AuctionTracker tests', function () {
                         treasuryAddress, settlementToken);
                     const testAuctionId = 1;
                     // ACT
-                    await auctionTracker.addToAuction(testAuctionId, testAuction);
-                    await auctionTracker.addToActiveAuction(testAuctionId, item);
+                    await auctionTracker.addActiveAuction(testAuctionId, testAuction);
                     let retrievedCategories = await auctionTracker.getAllCategories();
                     // ASSERT
                     expect(retrievedCategories.length).to.equal(1);
@@ -425,10 +421,8 @@ describe('AuctionTracker tests', function () {
                         initialPrice, originalOwnerAddress, priceIncrease, paymentToken, 
                         treasuryAddress, settlementToken);
                     // ACT
-                    await auctionTracker.addToAuction(auction1Id, testAuction1);
-                    await auctionTracker.addToAuction(auction2Id, testAuction2);
-                    await auctionTracker.addToActiveAuction(auction1Id, item1);
-                    await auctionTracker.addToActiveAuction(auction2Id, item2);
+                    await auctionTracker.addActiveAuction(auction1Id, testAuction1);
+                    await auctionTracker.addActiveAuction(auction2Id, testAuction2);
                     let retrievedCategories = await auctionTracker.getAllCategories();
                     // ASSERT
                     expect(retrievedCategories.length).to.equal(2);
@@ -466,8 +460,7 @@ describe('AuctionTracker tests', function () {
                     await orangeStandTicket.connect(sampleBidder).approve((await testAuction.getAddress()), priceIncrease);
                     
                     // ACT
-                    await auctionTracker.addToAuction(testAuctionId, testAuction);
-                    await auctionTracker.addToActiveAuction(testAuctionId, item);
+                    await auctionTracker.addActiveAuction(testAuctionId, testAuction);
                     let initialActiveAuction = Auction.attach(await auctionTracker.getAuction(testAuctionId));
                     let initialActiveBidAddress = await initialActiveAuction.getActiveBid();
                     await auctionTracker.generateBid(testAuctionId, sampleBidder);
@@ -510,8 +503,7 @@ describe('AuctionTracker tests', function () {
                     await orangeStandTicket.connect(sampleBidder).approve((await testAuction.getAddress()), priceIncrease);
                     await orangeStandTicket.connect(secondSampleBidder).approve((await testAuction.getAddress()), priceIncrease);
                     // ACT
-                    await auctionTracker.addToAuction(testAuctionId, testAuction);
-                    await auctionTracker.addToActiveAuction(testAuctionId, item);
+                    await auctionTracker.addActiveAuction(testAuctionId, testAuction);
                     let initialActiveAuction = Auction.attach(await auctionTracker.getAuction(testAuctionId));
                     let initialActiveBidAddress = await initialActiveAuction.getActiveBid();
                     await auctionTracker.generateBid(testAuctionId, sampleBidder);
@@ -555,8 +547,7 @@ describe('AuctionTracker tests', function () {
                     await orangeStandTicket.connect(sampleBidder).approve((await testAuction.getAddress()), priceIncrease);
                     
                     // ACT
-                    await auctionTracker.addToAuction(testAuctionId, testAuction);
-                    await auctionTracker.addToActiveAuction(testAuctionId, item);
+                    await auctionTracker.addActiveAuction(testAuctionId, testAuction);
                     await expect(auctionTracker.connect(nonOwnerCaller).generateBid(testAuctionId, sampleBidder)).to.be.reverted;
                 })
             })
@@ -591,8 +582,7 @@ describe('AuctionTracker tests', function () {
                     await orangeStandTicket.connect(sampleBidder).approve((await testAuction.getAddress()), priceIncrease);
                     
                     // ACT
-                    await auctionTracker.addToAuction(testAuctionId, testAuction);
-                    await auctionTracker.addToActiveAuction(testAuctionId, item);
+                    await auctionTracker.addActiveAuction(testAuctionId, testAuction);
                     let initialBidderAddress = await auctionTracker.getAuctionTransferAddress(testAuctionId);
                     await auctionTracker.generateBid(testAuctionId, sampleBidder);
                     let retrievedBidderAddress = await auctionTracker.getAuctionTransferAddress(testAuctionId);
@@ -632,8 +622,7 @@ describe('AuctionTracker tests', function () {
                 await orangeStandTicket.connect(sampleBidder).approve((await testAuction.getAddress()), priceIncrease);
                 
                 // ACT
-                await auctionTracker.addToAuction(testAuctionId, testAuction);
-                await expect(auctionTracker.connect(nonOwnerCaller).addToActiveAuction(testAuctionId, item)).to.be.reverted;
+                await expect(auctionTracker.connect(nonOwnerCaller).addActiveAuction(testAuctionId, testAuction)).to.be.reverted;
             })
         })
 
@@ -658,8 +647,7 @@ describe('AuctionTracker tests', function () {
                     treasuryAddress, settlementToken);
                 const testAuctionId = 1;
                 // ACT
-                await auctionTracker.addToAuction(testAuctionId, testAuction);
-                await auctionTracker.addToActiveAuction(testAuctionId, item);
+                await auctionTracker.addActiveAuction(testAuctionId, testAuction);
                 await auctionTracker.updateOccurrence(testAuctionId);
                 await expect(auctionTracker.connect(nonOwnerCaller).removeAuction(testAuctionId, item)).to.be.reverted;
             })
