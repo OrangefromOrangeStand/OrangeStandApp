@@ -20,6 +20,8 @@ describe('Auction tests', function () {
         const paymentToken = '0xE5C1E03225Af47391E51b79D6D149987cde5B222';
         const settlementToken = '0x198eebe8da4db8a475f9b31c864bf089e550719c';
         const treasuryAddress = '0x73d40cebfc02b67a1e87d67202545821b96c4645';
+        const userContractAddress = '0xa0Ee7A142d267C1f36714E4a8F75612F20a79720';
+        const orangeStandSpentTicketAddress = '0xBcd4042DE499D14e55001CcbB24a551F3b954096';
 
         const bidderAddress = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266';
         let bidder2Address = '0xD336C41f8b1494a7289D39d8De4aADB3792d8515';
@@ -114,8 +116,15 @@ describe('Auction tests', function () {
                 // ARRANGE
                 // Set up the payment token
                 const OrangeStandTicket = await ethers.getContractFactory("OrangeStandTicket");
-                const paymentToken = await OrangeStandTicket.deploy();
-                paymentToken.mint(bidderAddress, "15000000000000000000");
+                const OrangeStandSpentTicket = await ethers.getContractFactory('OrangeStandSpentTicket');
+                const CollectionErc20 = await ethers.getContractFactory('CollectionErc20');
+                const userContract = await CollectionErc20.deploy("usdTCollection", "USDT");
+                const orangeStandSpentTicket = await OrangeStandSpentTicket.deploy(await userContract.getAddress());
+                const paymentToken = await OrangeStandTicket.deploy(await userContract.getAddress(), await orangeStandSpentTicket.getAddress());
+                const bidPrice = 16;
+                await userContract.mint(bidderAddress, bidPrice);
+                await userContract.approve(await paymentToken.getAddress(), bidPrice);
+                await paymentToken.mint(bidderAddress, bidPrice);
                 const paymentTokenAddress = await paymentToken.getAddress();
                 // Get the previous block's timestamp
                 const blockNumBefore = await ethers.provider.getBlockNumber();
@@ -125,7 +134,7 @@ describe('Auction tests', function () {
                 const timestampForExecutingBlock = timestampForBlockBefore + 1;
                 // Set up the bid
                 const Bid = await ethers.getContractFactory('Bid');
-                const bidPrice = 16;
+                
                 const cycleDurationInMinutes = 1;
                 var bid = await Bid.deploy(bidderAddress, timestampForExecutingBlock, itemAddress, bidPrice);
                 const uninitialiseBidAddress = "0x0000000000000000000000000000000000000000";
@@ -138,7 +147,6 @@ describe('Auction tests', function () {
                     treasuryAddress, settlementToken);
                 const auctionAddress = await auction.getAddress();
                 await paymentToken.approve(auctionAddress, bidPrice);
-
                 // ACT
                 // ASSERT
                 await expect(auction.makeNewBid(bid)).to.emit(auction, "BidUpdate")
@@ -153,9 +161,18 @@ describe('Auction tests', function () {
                 // ARRANGE
                 // Set up the payment token
                 const OrangeStandTicket = await ethers.getContractFactory("OrangeStandTicket");
-                const paymentToken = await OrangeStandTicket.deploy();
-                paymentToken.mint(bidderAddress, "15000000000000000000");
-                paymentToken.mint(bidder2Address, "15000000000000000000");
+                const OrangeStandSpentTicket = await ethers.getContractFactory('OrangeStandSpentTicket');
+                const CollectionErc20 = await ethers.getContractFactory('CollectionErc20');
+                const userContract = await CollectionErc20.deploy("usdTCollection", "USDT");
+                const orangeStandSpentTicket = await OrangeStandSpentTicket.deploy(await userContract.getAddress());
+                const paymentToken = await OrangeStandTicket.deploy(await userContract.getAddress(), await orangeStandSpentTicket.getAddress());
+                const bidPrice = 16;
+                await userContract.mint(bidderAddress, bidPrice);
+                await userContract.mint(bidder2Address, bidPrice);
+                await userContract.approve(await paymentToken.getAddress(), bidPrice);
+                await userContract.connect(address2).approve(await paymentToken.getAddress(), bidPrice);
+                paymentToken.mint(bidderAddress, bidPrice);
+                paymentToken.mint(bidder2Address, bidPrice);
                 const paymentTokenAddress = await paymentToken.getAddress();
                 // Get the previous block's timestamp
                 const blockNumBefore = await ethers.provider.getBlockNumber();
@@ -165,7 +182,6 @@ describe('Auction tests', function () {
                 const timestampForExecutingBlock = timestampForBlockBefore + 1;
                 // Set up the bid
                 const Bid = await ethers.getContractFactory('Bid');
-                const bidPrice = 16;
                 const cycleDurationInMinutes = 1;
                 var bid1 = await Bid.deploy(bidderAddress, timestampForExecutingBlock, itemAddress, bidPrice);
                 const bid1Address = await bid1.getAddress();
@@ -180,7 +196,7 @@ describe('Auction tests', function () {
                     treasuryAddress, settlementToken);
                 const auctionAddress = await auction.getAddress();
                 await paymentToken.approve(auctionAddress, bidPrice, {'from': bidderAddress});
-                await paymentToken.connect(address2).approve(auctionAddress, bidPrice);                
+                await paymentToken.connect(address2).approve(auctionAddress, bidPrice);
                 // ACT
                 // ASSERT
                 await expect(auction.makeNewBid(bid1)).to.emit(auction, "BidUpdate")
@@ -198,8 +214,15 @@ describe('Auction tests', function () {
                 // ARRANGE
                 // Set up the payment token
                 const OrangeStandTicket = await ethers.getContractFactory("OrangeStandTicket");
-                const paymentToken = await OrangeStandTicket.deploy();
-                paymentToken.mint(bidderAddress, "15000000000000000000");
+                const OrangeStandSpentTicket = await ethers.getContractFactory('OrangeStandSpentTicket');
+                const CollectionErc20 = await ethers.getContractFactory('CollectionErc20');
+                const userContract = await CollectionErc20.deploy("usdTCollection", "USDT");
+                const orangeStandSpentTicket = await OrangeStandSpentTicket.deploy(await userContract.getAddress());
+                const paymentToken = await OrangeStandTicket.deploy(await userContract.getAddress(), await orangeStandSpentTicket.getAddress());
+                const bidPrice = 16;
+                await userContract.mint(bidderAddress, bidPrice);
+                await userContract.approve(await paymentToken.getAddress(), bidPrice);
+                paymentToken.mint(bidderAddress, bidPrice);
                 const paymentTokenAddress = await paymentToken.getAddress();
                 // Get the previous block's timestamp
                 const blockNumBefore = await ethers.provider.getBlockNumber();
@@ -209,7 +232,6 @@ describe('Auction tests', function () {
                 const timestampForExecutingBlock = timestampForBlockBefore + 1;
                 // Set up the bid
                 const Bid = await ethers.getContractFactory('Bid');
-                const bidPrice = 16;
                 const cycleDurationInMinutes = 1;
                 var bid = await Bid.deploy(bidderAddress, timestampForExecutingBlock, itemAddress, bidPrice);
                 const uninitialiseBidAddress = "0x0000000000000000000000000000000000000000";
@@ -236,8 +258,15 @@ describe('Auction tests', function () {
                 // ARRANGE
                 // Set up the payment token
                 const OrangeStandTicket = await ethers.getContractFactory("OrangeStandTicket");
-                const paymentToken = await OrangeStandTicket.deploy();
-                paymentToken.mint(bidderAddress, "15000000000000000000");
+                const OrangeStandSpentTicket = await ethers.getContractFactory('OrangeStandSpentTicket');
+                const CollectionErc20 = await ethers.getContractFactory('CollectionErc20');
+                const userContract = await CollectionErc20.deploy("usdTCollection", "USDT");
+                const orangeStandSpentTicket = await OrangeStandSpentTicket.deploy(await userContract.getAddress());
+                const paymentToken = await OrangeStandTicket.deploy(await userContract.getAddress(), await orangeStandSpentTicket.getAddress());
+                const bidPrice = 16;
+                await userContract.mint(bidderAddress, bidPrice);
+                await userContract.approve(await paymentToken.getAddress(), bidPrice);
+                await paymentToken.mint(bidderAddress, bidPrice);
                 const paymentTokenAddress = await paymentToken.getAddress();
                 // Get the previous block's timestamp
                 const blockNumBefore = await ethers.provider.getBlockNumber();
@@ -247,7 +276,6 @@ describe('Auction tests', function () {
                 const timestampForExecutingBlock = timestampForBlockBefore + 1;
                 // Set up the bid
                 const Bid = await ethers.getContractFactory('Bid');
-                const bidPrice = 16;
                 const cycleDurationInMinutes = 1;
                 var bid = await Bid.deploy(bidderAddress, timestampForExecutingBlock, itemAddress, bidPrice);
                 const uninitialiseBidAddress = "0x0000000000000000000000000000000000000000";
@@ -272,8 +300,15 @@ describe('Auction tests', function () {
                 // ARRANGE
                 // Set up the payment token
                 const OrangeStandTicket = await ethers.getContractFactory("OrangeStandTicket");
-                const paymentToken = await OrangeStandTicket.deploy();
-                paymentToken.mint(bidderAddress, "15000000000000000000");
+                const OrangeStandSpentTicket = await ethers.getContractFactory('OrangeStandSpentTicket');
+                const CollectionErc20 = await ethers.getContractFactory('CollectionErc20');
+                const userContract = await CollectionErc20.deploy("usdTCollection", "USDT");
+                const orangeStandSpentTicket = await OrangeStandSpentTicket.deploy(await userContract.getAddress());
+                const paymentToken = await OrangeStandTicket.deploy(await userContract.getAddress(), await orangeStandSpentTicket.getAddress());
+                const bidPrice = 16;
+                await userContract.mint(bidderAddress, bidPrice);
+                await userContract.approve(await paymentToken.getAddress(), bidPrice);
+                await paymentToken.mint(bidderAddress, bidPrice);
                 const paymentTokenAddress = await paymentToken.getAddress();
                 // Get the previous block's timestamp
                 const blockNumBefore = await ethers.provider.getBlockNumber();
@@ -283,7 +318,6 @@ describe('Auction tests', function () {
                 const timestampForExecutingBlock = timestampForBlockBefore + 1;
                 // Set up the bid
                 const Bid = await ethers.getContractFactory('Bid');
-                const bidPrice = 16;
                 const cycleDurationInMinutes = 1;
                 var bid = await Bid.deploy(bidderAddress, timestampForExecutingBlock, itemAddress, bidPrice);
                 // SUT
@@ -309,10 +343,16 @@ describe('Auction tests', function () {
                 // ARRANGE
                 // Set up the payment token
                 const OrangeStandTicket = await ethers.getContractFactory("OrangeStandTicket");
-                const paymentToken = await OrangeStandTicket.deploy();
+                const OrangeStandSpentTicket = await ethers.getContractFactory('OrangeStandSpentTicket');
+                const CollectionErc20 = await ethers.getContractFactory('CollectionErc20');
+                const userContract = await CollectionErc20.deploy("usdTCollection", "USDT");
+                const orangeStandSpentTicket = await OrangeStandSpentTicket.deploy(await userContract.getAddress());
+                const paymentToken = await OrangeStandTicket.deploy(await userContract.getAddress(), await orangeStandSpentTicket.getAddress());
                 const [owner] = await ethers.getSigners();
                 const bidPrice = 100;
-                paymentToken.mint(bidderAddress, bidPrice);
+                await userContract.mint(bidderAddress, bidPrice);
+                await userContract.approve(await paymentToken.getAddress(), bidPrice);
+                await paymentToken.mint(bidderAddress, bidPrice);
                 const paymentTokenAddress = await paymentToken.getAddress();
                 // Get the previous block's timestamp
                 const blockNumBefore = await ethers.provider.getBlockNumber();
@@ -365,8 +405,15 @@ describe('Auction tests', function () {
                 // ARRANGE
                 // Set up the payment token
                 const OrangeStandTicket = await ethers.getContractFactory("OrangeStandTicket");
-                const paymentToken = await OrangeStandTicket.deploy();
-                paymentToken.mint(bidderAddress, "15000000000000000000");
+                const OrangeStandSpentTicket = await ethers.getContractFactory('OrangeStandSpentTicket');
+                const CollectionErc20 = await ethers.getContractFactory('CollectionErc20');
+                const userContract = await CollectionErc20.deploy("usdTCollection", "USDT");
+                const orangeStandSpentTicket = await OrangeStandSpentTicket.deploy(await userContract.getAddress());
+                const paymentToken = await OrangeStandTicket.deploy(await userContract.getAddress(), await orangeStandSpentTicket.getAddress());
+                const bidPrice = 16;
+                await userContract.mint(bidderAddress, bidPrice);
+                await userContract.approve(await paymentToken.getAddress(), bidPrice);
+                await paymentToken.mint(bidderAddress, bidPrice);
                 const paymentTokenAddress = await paymentToken.getAddress();
                 // Get the previous block's timestamp
                 const blockNumBefore = await ethers.provider.getBlockNumber();
@@ -376,7 +423,6 @@ describe('Auction tests', function () {
                 const timestampForExecutingBlock = timestampForBlockBefore + 1;
                 // Set up the bid
                 const Bid = await ethers.getContractFactory('Bid');
-                const bidPrice = 16;
                 const cycleDurationInMinutes = 1;
                 var bid = await Bid.deploy(bidderAddress, timestampForExecutingBlock, itemAddress, bidPrice);
                 // SUT

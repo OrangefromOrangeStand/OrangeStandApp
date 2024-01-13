@@ -17,29 +17,50 @@ import * as erc721Abi from '../artifacts/@openzeppelin/contracts/token/ERC721/ER
 import * as erc20Abi from '../artifacts/@openzeppelin/contracts/token/ERC20/ERC20.sol/ERC20.json';
 
 async function main() {
+    const [deployer, addr1, addr2, addr3, addr4, addr5, addr6] = await ethers.getSigners();
     var treasuryAddress = '0x119117fb67285be332c3511E52b25441172cf129';
-    var deploymentAddress = '0x70997970C51812dc3A010C7d01b50e0d17dc79C8';
-    var testingAddress = '0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199';
-    const [deployer, addr1, addr2, addr3, addr4, addr5] = await ethers.getSigners();
+    //var deploymentAddress = '0x70997970C51812dc3A010C7d01b50e0d17dc79C8';
+    var deploymentAddress = deployer.address;//'0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266';
+    var testingAddress = addr6.address//'0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199';
     console.log("Deploying contracts with the account:", deployer.address);
   
-    const OrangeStandTicket = await ethers.getContractFactory("OrangeStandTicket");
-    const orangeStandTicket = await OrangeStandTicket.deploy();
-    orangeStandTicket.mint(deploymentAddress, "15000000000000000000");
-    orangeStandTicket.mint(testingAddress, "10000000000000000000");
+    const CollectionErc20 = await ethers.getContractFactory("CollectionErc20");
+    const usdTErc20 = await CollectionErc20.deploy("usdTCollection", "USDT");
+    console.log("USDT deployed to:", (await usdTErc20.getAddress()));
+    let usdTErc20Contents = JSON.stringify(collectionErc20Abi.abi);
+    writeFileSync("../webapp/src/abi/USDTErc20.tsx", "export const USDTErc20 = " + usdTErc20Contents);  
+    await usdTErc20.mint(deploymentAddress, "10000000000000000000");
 
+    const OrangeStandSpentTicket = await ethers.getContractFactory("OrangeStandSpentTicket");
+    const orangeStandSpentTicket = await OrangeStandSpentTicket.deploy(await usdTErc20.getAddress());
+    
+    const OrangeStandTicket = await ethers.getContractFactory("OrangeStandTicket");
+    const orangeStandTicket = await OrangeStandTicket.deploy(await usdTErc20.getAddress(), await orangeStandSpentTicket.getAddress());
+    await usdTErc20.connect(deployer).mint(deploymentAddress, "15000000000000000000");
+    await usdTErc20.connect(deployer).approve(await orangeStandTicket.getAddress(), "15000000000000000000");
+    await orangeStandTicket.mint(deploymentAddress, "15000000000000000000");
+    await usdTErc20.connect(addr6).mint(testingAddress, "10000000000000000000");
+    await usdTErc20.connect(addr6).approve(await orangeStandTicket.getAddress(), "10000000000000000000");
+    orangeStandTicket.mint(testingAddress, "10000000000000000000");
+    await usdTErc20.connect(addr1).mint(addr1.address, "10000000000000000000");
+    await usdTErc20.connect(addr1).approve(await orangeStandTicket.getAddress(), "10000000000000000000");
     orangeStandTicket.mint(addr1.address, "10000000000000000000");
+    await usdTErc20.connect(addr2).mint(addr2.address, "10000000000000000000");
+    await usdTErc20.connect(addr2).approve(await orangeStandTicket.getAddress(), "10000000000000000000");
     orangeStandTicket.mint(addr2.address, "10000000000000000000");
+    await usdTErc20.connect(addr3).mint(addr3.address, "10000000000000000000");
+    await usdTErc20.connect(addr3).approve(await orangeStandTicket.getAddress(), "10000000000000000000");
     orangeStandTicket.mint(addr3.address, "10000000000000000000");
+    await usdTErc20.connect(addr4).mint(addr4.address, "10000000000000000000");
+    await usdTErc20.connect(addr4).approve(await orangeStandTicket.getAddress(), "10000000000000000000");
     orangeStandTicket.mint(addr4.address, "10000000000000000000");
+    await usdTErc20.connect(addr5).mint(addr5.address, "10000000000000000000");
+    await usdTErc20.connect(addr5).approve(await orangeStandTicket.getAddress(), "10000000000000000000");
     orangeStandTicket.mint(addr5.address, "10000000000000000000");
 
 //    let oldOrangeStandOwner = await orangeStandTicket.owner();
 //    console.log("Old OrangeStand owner:", oldOrangeStandOwner);
-
-    const OrangeStandSpentTicket = await ethers.getContractFactory("OrangeStandSpentTicket");
-    const orangeStandSpentTicket = await OrangeStandSpentTicket.deploy();
-  
+    
     const AuctionCoordinator = await ethers.getContractFactory("AuctionCoordinator");
     const auctionCoordinator = await AuctionCoordinator.deploy(await orangeStandTicket.getAddress(), 
       treasuryAddress, await orangeStandSpentTicket.getAddress());
@@ -100,7 +121,6 @@ async function main() {
     let collection6Contents = JSON.stringify(collectionTokenAbi.abi);
     writeFileSync("../webapp/src/abi/Collection6.tsx", "export const Collection6 = " + collection6Contents);
   
-    const CollectionErc20 = await ethers.getContractFactory("CollectionErc20");
     const collection1Erc20 = await CollectionErc20.deploy("Collection1Erc20", "COL1");
     console.log("ERC20 Coll 1 deployed to:", (await collection1Erc20.getAddress()));
     let collection1Erc20Contents = JSON.stringify(collectionErc20Abi.abi);
@@ -131,7 +151,6 @@ async function main() {
     let collection6Erc20Contents = JSON.stringify(collectionErc20Abi.abi);
     writeFileSync("../webapp/src/abi/Collection6Erc20.tsx", "export const Collection6Erc20 = " + collection6Erc20Contents);  
     collection6Erc20.mint(deployer.address, "10000000000000000000");
-
     const SimulationToken = await ethers.getContractFactory("SimulationToken");
     const simToken = await SimulationToken.deploy();
     console.log("SimToken deployed to:", (await simToken.getAddress()));
@@ -158,6 +177,7 @@ async function main() {
         +'",\n"collection6Address":"'+(await collection6Token.getAddress())
         +'",\n"orangeStandTicketAddress":"'+(await orangeStandTicket.getAddress())
         +'",\n"orangeStandSpentTicketAddress":"'+(await orangeStandSpentTicket.getAddress())
+        +'",\n"usdTErc20Address":"'+(await usdTErc20.getAddress())
         +'",\n"collection1Erc20Address":"'+(await collection1Erc20.getAddress())
         +'",\n"collection2Erc20Address":"'+(await collection2Erc20.getAddress())
         +'",\n"collection3Erc20Address":"'+(await collection3Erc20.getAddress())

@@ -23,6 +23,7 @@ import {
 
 import { Center } from '@chakra-ui/react'
 import { Heading, Box } from "@chakra-ui/layout"
+import { useToast } from '@chakra-ui/react'
 
 interface Props {
     addressContract: string,
@@ -54,6 +55,8 @@ export default function AuctionableErc20Item(props:Props){
     const handleChange = (value) => setDisplayAmountValue(value)
     const [costValue, setCostValue]=useState<number>(1);
 
+    const toast = useToast()
+
     //call when currentAccount change
     useEffect(()=>{
       if(connectedAccount == undefined) return
@@ -77,18 +80,96 @@ export default function AuctionableErc20Item(props:Props){
       setAmountValue(+bal);
       setDisplayAmountValue(bal / (10 ** decPlaces));
     }
+
+    function invalidInput(amountValue, cycleDuration, initialPrice, priceIncrease, decPlaces){
+      let invalidInput = false;
+      if(amountValue < 1){ 
+        toast({
+          title: "Specified amount is too small - you need to increase the amount",
+          status: 'error',
+          variant: 'subtle',
+          duration: 3000,
+          isClosable: true,
+        });
+        invalidInput = true;
+      }
+      if(cycleDuration % 1 != 0){ 
+        toast({
+          title: "Bidding period in minutes can't be a fraction",
+          status: 'error',
+          variant: 'subtle',
+          duration: 3000,
+          isClosable: true,
+        });
+        invalidInput = true;
+      }
+      if((initialPrice * (10 ** decPlaces)) < 1){ 
+        toast({
+          title: "Initial price is too small - you need to increase the amount",
+          status: 'error',
+          variant: 'subtle',
+          duration: 3000,
+          isClosable: true,
+        });
+        invalidInput = true;
+      }
+      if((priceIncrease * (10 ** decPlaces)) < 1){ 
+        toast({
+          title: "Bid cost is too small - you need to increase the amount",
+          status: 'error',
+          variant: 'subtle',
+          duration: 3000,
+          isClosable: true,
+        });
+        invalidInput = true;
+      }
+      return invalidInput;
+    }
   
     async function createAuction(){
       let rawAmountValue = +displayAmountValue * (10 ** decimalPlaces);
+      if(invalidInput(rawAmountValue, increaseValue, initialPrice, costValue, decimalPlaces)) return;
       const signer = await props.provider!.getSigner()
 
       const auctionCoordinator = new ethers.Contract(auctionCoordinatorContract, auctionCoordinatorAbi, signer);
       const erc20 = new ethers.Contract(addressContract, erc20Abi, signer);
 
-      await erc20.transfer(auctionCoordinatorContract, rawAmountValue.toString());
-      console.log("Auction coordinator contract: " + auctionCoordinatorContract)
-      await auctionCoordinator.createErc20Auction(erc20.address, rawAmountValue.toString(), connectedAccount, increaseValue, 
-        initialPrice, props.orangeStandTicketAddress, ethers.parseUnits(costValue.toString(), "ether"), props.orangeStandSpentTicketAddress);
+      let auctionCoordinatorAllowance = await erc20.allowance(connectedAccount, auctionCoordinatorContract);
+      var canMakeBid = true;
+      if(auctionCoordinatorAllowance < rawAmountValue){
+        await erc20.approve(auctionCoordinatorContract, rawAmountValue.toString())
+          .catch((error) => {
+            toast({
+              title: "Transaction couldn't be approved!",
+              status: 'error',
+              variant: 'subtle',
+              duration: 3000,
+              isClosable: true,
+            });
+            canMakeBid = false;
+          });
+        }
+      if(canMakeBid){
+        await auctionCoordinator.createErc20Auction(await erc20.getAddress(), rawAmountValue.toString(), 
+          connectedAccount, increaseValue, 
+          //initialPrice, 
+          ethers.parseUnits(initialPrice.toLocaleString('fullwide', {useGrouping:false}), "ether"),
+          props.orangeStandTicketAddress, 
+          ethers.parseUnits(costValue.toLocaleString('fullwide', {useGrouping:false}), "ether"), 
+          props.orangeStandSpentTicketAddress)
+        .catch((error) => {
+          toast({
+            title: "Auction couldn't be set up!",
+            status: 'error',
+            variant: 'subtle',
+            duration: 3000,
+            isClosable: true,
+          });
+        });
+      }
+      
+      //await erc20.transfer(auctionCoordinatorContract, rawAmountValue.toString());
+      
     }
 
     return (
@@ -140,7 +221,7 @@ export default function AuctionableErc20Item(props:Props){
                           justifyContent='space-between'
                           pb={4}>
                           <Box>Initial price:</Box>
-                          <NumberInput maxW='100px' mr='2rem' defaultValue={initialPrice} onChange={(val) => setInitialPrice(+val)}>
+                          <NumberInput maxW='100px' mr='2rem' min={0} defaultValue={initialPrice} onChange={(val) => setInitialPrice(+val)}>
                               <NumberInputField />
                               <NumberInputStepper>
                               <NumberIncrementStepper />
@@ -154,7 +235,7 @@ export default function AuctionableErc20Item(props:Props){
                           justifyContent='space-between'
                           pb={4}>
                           <Box>Bidding period in minutes:</Box>
-                          <NumberInput maxW='100px' mr='2rem' defaultValue={increaseValue} onChange={(val) => setIncreaseValue(+val)}>
+                          <NumberInput maxW='100px' mr='2rem' min={0} defaultValue={increaseValue} onChange={(val) => setIncreaseValue(+val)}>
                               <NumberInputField />
                               <NumberInputStepper>
                               <NumberIncrementStepper />
@@ -168,7 +249,7 @@ export default function AuctionableErc20Item(props:Props){
                           justifyContent='space-between'
                           pb={4}>
                           <Box>Bid cost:</Box>
-                          <NumberInput maxW='100px' mr='2rem' defaultValue={costValue} onChange={(val) => setCostValue(+val)}>
+                          <NumberInput maxW='100px' mr='2rem' min={0} defaultValue={costValue} onChange={(val) => setCostValue(+val)}>
                               <NumberInputField />
                               <NumberInputStepper>
                               <NumberIncrementStepper />

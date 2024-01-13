@@ -61,6 +61,7 @@ contract AuctionCoordinator is AccessControl {
     newItem.addErc721(erc721Address, tokenId);
     uint256 auctionId = setUpAuction(address(newItem), originalOwner, auctionSpeed, initialBidPrice, paymentToken, bidCost, settlementToken);
     emit Erc721AuctionCreation(auctionId,erc721Address,originalOwner,tokenId, block.number);
+    //emit Erc721AuctionCreation(1,1,1,1, 1);
   }
 
   function createErc20Auction(address erc20Address,

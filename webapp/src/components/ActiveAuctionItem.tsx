@@ -198,7 +198,6 @@ export default function ActiveAuctionItem(props:Props){
       let costOfMakingBid = ethers.formatEther(await auction.getPriceIncrease());
       updatePriceIncrease(costOfMakingBid);
       updateStatusText("Cost to claim: " + costOfMakingBid);
-      
       const {progressionValue, formattedTimeLeft} = await calculateTimeLeft(auction);
       var timeLeftAsString = "Time remaining: "+formattedTimeLeft;
       const signer = await provider.getSigner();
@@ -325,35 +324,56 @@ export default function ActiveAuctionItem(props:Props){
           const erc20 = new ethers.Contract(props.paymentContract, erc20Abi, signer);
           let priceIncrease = await auction.getPriceIncrease();
           let auctionCoordinatorAllowance = await erc20.allowance(props.currentAccount, auctionContract);
+          var canMakeBid = true;
           if(auctionCoordinatorAllowance < priceIncrease){
-            await erc20.approve(auctionContract, ethers.MaxUint256);
-          }
-          await auctionCoordinator.makeBid(auctionId, globalThis.connectedAddress);
-          provider.once("block", (blockNumber) => {
-            auction.once("BidUpdate(uint256,address,address,address,address)", (auctionId,newBidAddress,oldBidAddress,newBidder,oldBidder) => {
-              if(props.currentAccount != undefined && props.currentAccount.toLowerCase() === newBidder.toLowerCase()){
-                toast({
-                  title: "You're the highest bidder",
-                  status: 'success',
-                  variant: 'subtle',
-                  duration: 5000,
-                  isClosable: true,
-                });
-                  auction.once("BidUpdate(uint256,address,address,address,address)", (auctionId2,newBidAddress2,oldBidAddress2,newBidder2,oldBidder2) => {
-                    if(props.currentAccount != undefined && props.currentAccount.toLowerCase() === oldBidder2.toLowerCase()){
-                      toast({
-                        title: "You're no longer the highest bidder",
-                        status: 'warning',
-                        variant: 'subtle',
-                        duration: 5000,
-                        isClosable: true,
-                      });
-                    }
-                  });
-              }
-              props.setNumBidsMade((currNumBidsMade: number) => currNumBidsMade + 1);
+            await erc20.approve(auctionContract, priceIncrease)
+            .catch((error) => {
+              toast({
+                title: "Bid could not be set up!",
+                status: 'error',
+                variant: 'subtle',
+                duration: 3000,
+                isClosable: true,
+              });
+              canMakeBid = false;
             });
-          });
+          }
+          if(canMakeBid){
+            await auctionCoordinator.makeBid(auctionId, globalThis.connectedAddress).catch((error) => {
+              toast({
+                title: "Bid could not be made!",
+                status: 'error',
+                variant: 'subtle',
+                duration: 3000,
+                isClosable: true,
+              });
+            });
+            provider.once("block", (blockNumber) => {
+              auction.once("BidUpdate(uint256,address,address,address,address)", (auctionId,newBidAddress,oldBidAddress,newBidder,oldBidder) => {
+                if(props.currentAccount != undefined && props.currentAccount.toLowerCase() === newBidder.toLowerCase()){
+                  toast({
+                    title: "You're the highest bidder",
+                    status: 'success',
+                    variant: 'subtle',
+                    duration: 5000,
+                    isClosable: true,
+                  });
+                    auction.once("BidUpdate(uint256,address,address,address,address)", (auctionId2,newBidAddress2,oldBidAddress2,newBidder2,oldBidder2) => {
+                      if(props.currentAccount != undefined && props.currentAccount.toLowerCase() === oldBidder2.toLowerCase()){
+                        toast({
+                          title: "You're no longer the highest bidder",
+                          status: 'warning',
+                          variant: 'subtle',
+                          duration: 5000,
+                          isClosable: true,
+                        });
+                      }
+                    });
+                }
+                props.setNumBidsMade((currNumBidsMade: number) => currNumBidsMade + 1);
+              });
+            });
+          }
         } else {
           finaliseAuction(auctionCoordinator, auctionId, auction);
         }
@@ -362,7 +382,15 @@ export default function ActiveAuctionItem(props:Props){
     }
 
     async function finaliseAuction(auctionCoordinator: ethers.Contract, auctionId: number, auction: ethers.Contract) {
-      await auctionCoordinator.settleAuction(auctionId);
+      await auctionCoordinator.settleAuction(auctionId).catch((error) => {
+        toast({
+          title: "Auction could not be settled - please try again",
+          status: 'error',
+          variant: 'subtle',
+          duration: 3000,
+          isClosable: true,
+        });
+      });
       auction.once("AuctionSettled", (auctionId,winningBidder,finalPrice) => {
         toast({
           title: "Auction has been settled",

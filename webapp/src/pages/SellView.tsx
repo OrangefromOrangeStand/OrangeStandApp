@@ -57,6 +57,7 @@ export default function SellView(props:Props) {
     }
     const provider = new ethers.BrowserProvider(window.ethereum)
     if(auctionCoordinator == null){
+      console.log("New auction coordinator being set up again")
       setAuctionCoordinator(new ethers.Contract(auctionCoordinatorContract, auctionCoordinatorAbi, provider));
     }
   },[auctionCoordinatorContract,auctionCoordinator])
@@ -95,15 +96,18 @@ export default function SellView(props:Props) {
       setErc20RenderingList(erc20List);
       if(auctionCoordinator != null){
         auctionCoordinator.removeAllListeners("Erc20AuctionCreation");
+        console.log("Setting up listener1");
         auctionCoordinator.removeAllListeners("Erc721AuctionCreation");
       }
       if(auctionCoordinator == null){
         let newAuctionCoordinator = new ethers.Contract(auctionCoordinatorContract, auctionCoordinatorAbi, provider);
         setAuctionCoordinator(newAuctionCoordinator);
         newAuctionCoordinator.on("Erc20AuctionCreation", erc20AuctionCreationListener);
+        console.log("Setting up listener2");
         newAuctionCoordinator.on("Erc721AuctionCreation", erc721AuctionCreationListener);
       } else {
         auctionCoordinator.on("Erc20AuctionCreation", erc20AuctionCreationListener);
+        console.log("Setting up listener3");
         auctionCoordinator.on("Erc721AuctionCreation", erc721AuctionCreationListener);
       }
     }
@@ -111,7 +115,9 @@ export default function SellView(props:Props) {
   },[props.activeAccount,props.numSellingItems,props.numSettledTransactions])
 
   const erc721AuctionCreationListener = (auctionId: number,item:string,originalOwner: string,tokenId: number,blockNumber: number) => {
+    console.log("ERC721 listener!");
     if(startingBlockNumber < blockNumber && erc721RenderingListRef.current.find((elem) => {return elem.tokenId == tokenId})){
+      console.log("ERC721 listener within block!");
       setErc721RenderingList(erc721RenderingListRef.current.filter(obj => obj.tokenId != tokenId));
 
       addAuctionItemToEnd({id: +auctionId, num: +auctionId});
@@ -126,11 +132,14 @@ export default function SellView(props:Props) {
   }
 
   const addAuctionItemToEnd = (newAuctionItem: any) => {
+    console.log("Number of selling items changed! " +(props.numSellingItems+1));
     props.setNumSellingItems(props.numSellingItems+1);
   }
 
   const erc20AuctionCreationListener = (auctionId: number,item: string,originalOwner: string,amount: number,blockNumber: number) => {
+    console.log("Event came in!");
     if(startingBlockNumber < blockNumber){
+      console.log("New item has been created!")
       let deductedTokens = amount;
       let newList = erc20RenderingListRef.current;
       for(var i = 0 ;i < erc20RenderingListRef.current.length; i++){

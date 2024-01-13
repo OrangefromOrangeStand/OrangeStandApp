@@ -8,8 +8,11 @@ import "@openzeppelin/contracts/access/AccessControl.sol";
 contract OrangeStandSpentTicket is ERC20, Ownable, AccessControl {
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     event TicketRedeemed(address owner, uint256 amount, uint blockNumber);
+    address private _userContractAddress;
 
-    constructor() public ERC20('OrangeStandSpentTicket', 'OSST') { }
+    constructor(address userContractAddress) public ERC20('OrangeStandSpentTicket', 'OSST') { 
+        _userContractAddress = userContractAddress;
+    }
 
     function addMinter(address newMinter) public onlyOwner {
         _grantRole(MINTER_ROLE, newMinter);
@@ -20,8 +23,9 @@ contract OrangeStandSpentTicket is ERC20, Ownable, AccessControl {
         _mint(account, amount);
     }
 
-    function burn(address account, uint256 amount) public onlyOwner {
-    //function burn(address account, uint256 amount) public {
+    //function burn(address account, uint256 amount) public onlyOwner {
+    function burn(address account, uint256 amount) public {
+        IERC20(_userContractAddress).transfer(account, amount);
         _burn(account, amount);
         emit TicketRedeemed(account, amount, block.number);
     }

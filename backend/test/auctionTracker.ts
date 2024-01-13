@@ -28,12 +28,14 @@ describe('AuctionTracker tests', function () {
                 console.log('Connected to external contract', auctionTracker.address);
             });
         } else {
-            it('Should deploy AuctionCoordinator', async function () {
+            it('Should deploy AuctionTracker', async function () {
                 const AuctionTracker = await ethers.getContractFactory('AuctionTracker');
                 const OrangeStandTicket = await ethers.getContractFactory('OrangeStandTicket');
                 const OrangeStandSpentTicket = await ethers.getContractFactory('OrangeStandSpentTicket');
-                orangeStandSettlementTicket = await OrangeStandSpentTicket.deploy()
-                orangeStandTicket = await OrangeStandTicket.deploy()
+                const CollectionErc20 = await ethers.getContractFactory('CollectionErc20');
+                const userContract = await CollectionErc20.deploy("usdTCollection", "USDT");
+                orangeStandSettlementTicket = await OrangeStandSpentTicket.deploy(await userContract.getAddress());
+                orangeStandTicket = await OrangeStandTicket.deploy(await userContract.getAddress(), await orangeStandSettlementTicket.getAddress());
                 auctionTracker = await AuctionTracker.deploy()
             });
         }
@@ -438,8 +440,14 @@ describe('AuctionTracker tests', function () {
                     let sampleBidder = addr1;
                     const AuctionTracker = await ethers.getContractFactory('AuctionTracker');
                     let auctionTracker = await AuctionTracker.deploy();
-                    const OrangeStandTicket = await ethers.getContractFactory('OrangeStandTicket');
-                    let orangeStandTicket = await OrangeStandTicket.deploy()
+                    const OrangeStandTicket = await ethers.getContractFactory("OrangeStandTicket");
+                    const OrangeStandSpentTicket = await ethers.getContractFactory('OrangeStandSpentTicket');
+                    const CollectionErc20 = await ethers.getContractFactory('CollectionErc20');
+                    const userContract = await CollectionErc20.deploy("usdTCollection", "USDT");
+                    const orangeStandSpentTicket = await OrangeStandSpentTicket.deploy(await userContract.getAddress());
+                    const orangeStandTicket = await OrangeStandTicket.deploy(await userContract.getAddress(), await orangeStandSpentTicket.getAddress());
+                    await userContract.mint(sampleBidder, priceIncrease);
+                    await userContract.connect(sampleBidder).approve(await orangeStandTicket.getAddress(), priceIncrease);
                     await orangeStandTicket.mint(sampleBidder, priceIncrease);
                     const Auction = await ethers.getContractFactory('Auction');
                     const Item = await ethers.getContractFactory('Item');
@@ -479,8 +487,16 @@ describe('AuctionTracker tests', function () {
                     let secondSampleBidder = addr2;
                     const AuctionTracker = await ethers.getContractFactory('AuctionTracker');
                     let auctionTracker = await AuctionTracker.deploy();
-                    const OrangeStandTicket = await ethers.getContractFactory('OrangeStandTicket');
-                    let orangeStandTicket = await OrangeStandTicket.deploy()
+                    const OrangeStandTicket = await ethers.getContractFactory("OrangeStandTicket");
+                    const OrangeStandSpentTicket = await ethers.getContractFactory('OrangeStandSpentTicket');
+                    const CollectionErc20 = await ethers.getContractFactory('CollectionErc20');
+                    const userContract = await CollectionErc20.deploy("usdTCollection", "USDT");
+                    const orangeStandSpentTicket = await OrangeStandSpentTicket.deploy(await userContract.getAddress());
+                    const orangeStandTicket = await OrangeStandTicket.deploy(await userContract.getAddress(), await orangeStandSpentTicket.getAddress());
+                    await userContract.mint(sampleBidder, priceIncrease);
+                    await userContract.connect(sampleBidder).approve(await orangeStandTicket.getAddress(), priceIncrease);
+                    await userContract.mint(secondSampleBidder, priceIncrease);
+                    await userContract.connect(secondSampleBidder).approve(await orangeStandTicket.getAddress(), priceIncrease);
                     await orangeStandTicket.mint(sampleBidder, priceIncrease);
                     await orangeStandTicket.mint(secondSampleBidder, priceIncrease);
                     const Auction = await ethers.getContractFactory('Auction');
@@ -526,8 +542,14 @@ describe('AuctionTracker tests', function () {
                     let sampleBidder = addr1;
                     const AuctionTracker = await ethers.getContractFactory('AuctionTracker');
                     let auctionTracker = await AuctionTracker.deploy();
-                    const OrangeStandTicket = await ethers.getContractFactory('OrangeStandTicket');
-                    let orangeStandTicket = await OrangeStandTicket.deploy()
+                    const OrangeStandTicket = await ethers.getContractFactory("OrangeStandTicket");
+                    const OrangeStandSpentTicket = await ethers.getContractFactory('OrangeStandSpentTicket');
+                    const CollectionErc20 = await ethers.getContractFactory('CollectionErc20');
+                    const userContract = await CollectionErc20.deploy("usdTCollection", "USDT");
+                    const orangeStandSpentTicket = await OrangeStandSpentTicket.deploy(await userContract.getAddress());
+                    const orangeStandTicket = await OrangeStandTicket.deploy(await userContract.getAddress(), await orangeStandSpentTicket.getAddress());
+                    await userContract.mint(sampleBidder, priceIncrease);
+                    await userContract.connect(sampleBidder).approve(await orangeStandTicket.getAddress(), priceIncrease);
                     await orangeStandTicket.mint(sampleBidder, priceIncrease);
                     const Auction = await ethers.getContractFactory('Auction');
                     const Item = await ethers.getContractFactory('Item');
@@ -559,8 +581,14 @@ describe('AuctionTracker tests', function () {
                     let sampleBidder = addr1;
                     const AuctionTracker = await ethers.getContractFactory('AuctionTracker');
                     let auctionTracker = await AuctionTracker.deploy();
-                    const OrangeStandTicket = await ethers.getContractFactory('OrangeStandTicket');
-                    let orangeStandTicket = await OrangeStandTicket.deploy()
+                    const OrangeStandTicket = await ethers.getContractFactory("OrangeStandTicket");
+                    const OrangeStandSpentTicket = await ethers.getContractFactory('OrangeStandSpentTicket');
+                    const CollectionErc20 = await ethers.getContractFactory('CollectionErc20');
+                    const userContract = await CollectionErc20.deploy("usdTCollection", "USDT");
+                    const orangeStandSpentTicket = await OrangeStandSpentTicket.deploy(await userContract.getAddress());
+                    const orangeStandTicket = await OrangeStandTicket.deploy(await userContract.getAddress(), await orangeStandSpentTicket.getAddress());
+                    await userContract.mint(sampleBidder, priceIncrease);
+                    await userContract.connect(sampleBidder).approve(await orangeStandTicket.getAddress(), priceIncrease);
                     await orangeStandTicket.mint(sampleBidder, priceIncrease);
                     const Auction = await ethers.getContractFactory('Auction');
                     const Item = await ethers.getContractFactory('Item');
@@ -599,8 +627,14 @@ describe('AuctionTracker tests', function () {
                 let sampleBidder = addr1;
                 const AuctionTracker = await ethers.getContractFactory('AuctionTracker');
                 let auctionTracker = await AuctionTracker.deploy();
-                const OrangeStandTicket = await ethers.getContractFactory('OrangeStandTicket');
-                let orangeStandTicket = await OrangeStandTicket.deploy()
+                const OrangeStandTicket = await ethers.getContractFactory("OrangeStandTicket");
+                const OrangeStandSpentTicket = await ethers.getContractFactory('OrangeStandSpentTicket');
+                const CollectionErc20 = await ethers.getContractFactory('CollectionErc20');
+                const userContract = await CollectionErc20.deploy("usdTCollection", "USDT");
+                const orangeStandSpentTicket = await OrangeStandSpentTicket.deploy(await userContract.getAddress());
+                const orangeStandTicket = await OrangeStandTicket.deploy(await userContract.getAddress(), await orangeStandSpentTicket.getAddress());
+                await userContract.mint(sampleBidder, priceIncrease);
+                await userContract.connect(sampleBidder).approve(await orangeStandTicket.getAddress(), priceIncrease);
                 await orangeStandTicket.mint(sampleBidder, priceIncrease);
                 const Auction = await ethers.getContractFactory('Auction');
                 const Item = await ethers.getContractFactory('Item');

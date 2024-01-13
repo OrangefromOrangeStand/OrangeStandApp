@@ -74,21 +74,127 @@ export default function AuctionableErc721Item(props:Props){
         imageUri: 'https://ipfs.io/ipfs/' + json.image.replace(/ipfs:\/\//g, '')
       }
     }
+
+    function invalidInput(cycleDuration, initialPrice, priceIncrease, decPlaces){
+      let invalidInput = false;
+      if(cycleDuration % 1 != 0){ 
+        toast({
+          title: "Bidding period in minutes can't be a fraction",
+          status: 'error',
+          variant: 'subtle',
+          duration: 3000,
+          isClosable: true,
+        });
+        invalidInput = true;
+      }
+      if((initialPrice * (10 ** decPlaces)) < 1){ 
+        toast({
+          title: "Initial price is too small - you need to increase the amount",
+          status: 'error',
+          variant: 'subtle',
+          duration: 3000,
+          isClosable: true,
+        });
+        invalidInput = true;
+      }
+      if((priceIncrease * (10 ** decPlaces)) < 1){ 
+        toast({
+          title: "Bid cost is too small - you need to increase the amount",
+          status: 'error',
+          variant: 'subtle',
+          duration: 3000,
+          isClosable: true,
+        });
+        invalidInput = true;
+      }
+      return invalidInput;
+    }
   
     async function createAuction(){
+      let decimalPlaces = 18;
+      if(invalidInput(increaseValue, initialValue, costValue, decimalPlaces)) return;
+      //if(invalidInput(increaseValue, initialValue, ethers.parseUnits(costValue.toString(), "ether"))) return;
       const provider = new ethers.BrowserProvider(window.ethereum)
       const signer = await provider.getSigner()
 
       const auctionCoordinator = new ethers.Contract(auctionCoordinatorContract, auctionCoordinatorAbi, signer);
       const erc721 = new ethers.Contract(addressContract, erc721Abi, signer);
+      
+      let approvedAddress = await erc721.getApproved(iteration);
+      var canMakeBid = true;
+      console.log("Approved address " + approvedAddress + " and "+auctionCoordinatorContract)
+      if(!(auctionCoordinatorContract===approvedAddress)){
+        await erc721.approve(auctionCoordinatorContract, iteration)
+        .catch((error) => {
+          toast({
+            title: "Auction couldn't be set up!",
+            status: 'error',
+            variant: 'subtle',
+            duration: 3000,
+            isClosable: true,
+          });
+          console.log("Approval: "+error)
+          canMakeBid = false;
+        });
+      }
+      if(canMakeBid){
+        console.log("Val1 " + increaseValue);
+        console.log("Val2 " + initialValue);
+        console.log("Val2.1 " + ethers.parseUnits(initialValue.toLocaleString('fullwide', {useGrouping:false}), "ether"));
+        console.log("Val3 " + (costValue.toLocaleString('fullwide', {useGrouping:false})));
+        await auctionCoordinator.createErc721Auction(await erc721.getAddress(), iteration, 
+          globalThis.connectedAddress, increaseValue,
+          //initialValue.toLocaleString('fullwide', {useGrouping:false}),
+          ethers.parseUnits(initialValue.toLocaleString('fullwide', {useGrouping:false}), "ether"),
+          //initialValue, 
+          props.orangeStandTicketAddress,
+          ethers.parseUnits(costValue.toLocaleString('fullwide', {useGrouping:false}), "ether"),
+          props.orangeStandSpentTicketAddress)
+        //await auctionCoordinator.createErc20Auction(await erc20.getAddress(), rawAmountValue.toString(), 
+          //connectedAccount, increaseValue, 
+        //initialPrice, 
+        //props.orangeStandTicketAddress, 
+        //ethers.parseUnits(costValue.toLocaleString('fullwide', {useGrouping:false}), "ether"), 
+        //props.orangeStandSpentTicketAddress)
+        .catch((error) => {
+          toast({
+            title: "Auction couldn't be set up!",
+            status: 'error',
+            variant: 'subtle',
+            duration: 3000,
+            isClosable: true,
+          });
+          console.log("Auction creation: "+error)
+        });
+      }
 
-      await erc721.approve(auctionCoordinatorContract, iteration);
-      await auctionCoordinator.createErc721Auction((await erc721.getAddress()), iteration, 
-        globalThis.connectedAddress, increaseValue, 
-        initialValue, 
-        props.orangeStandTicketAddress,
-        ethers.parseUnits(costValue.toString(), "ether"),
-        props.orangeStandSpentTicketAddress);
+      /*await erc721.approve(auctionCoordinatorContract, iteration)
+      .then(async (returnedResponse) => {
+        await auctionCoordinator.createErc721Auction((await erc721.getAddress()), iteration, 
+          globalThis.connectedAddress, increaseValue, 
+          initialValue, 
+          props.orangeStandTicketAddress,
+          ethers.parseUnits(costValue.toString(), "ether"),
+          props.orangeStandSpentTicketAddress)
+        .catch((error) => {
+          toast({
+            title: "Auction couldn't be set up!",
+            status: 'error',
+            variant: 'subtle',
+            duration: 3000,
+            isClosable: true,
+          });
+        });
+      })
+      .catch((error) => {
+        toast({
+          title: "Transaction couldn't be approved!",
+          status: 'error',
+          variant: 'subtle',
+          duration: 3000,
+          isClosable: true,
+        });
+      });*/
     }
 
     
@@ -128,7 +234,7 @@ export default function AuctionableErc721Item(props:Props){
                           justifyContent='space-between'
                           pb={4}>
                           <Box>Initial price:</Box>
-                          <NumberInput maxW='100px' mr='2rem' defaultValue={initialValue} onChange={(val) => setInitialValue(+val)}>
+                          <NumberInput maxW='100px' min={0} mr='2rem' defaultValue={initialValue} onChange={(val) => setInitialValue(+val)}>
                               <NumberInputField />
                               <NumberInputStepper>
                               <NumberIncrementStepper />
@@ -142,7 +248,7 @@ export default function AuctionableErc721Item(props:Props){
                           justifyContent='space-between'
                           pb={4}>
                           <Box>Bidding period in minutes:</Box>
-                          <NumberInput maxW='100px' mr='2rem' defaultValue={increaseValue} onChange={(val) => setIncreaseValue(+val)}>
+                          <NumberInput maxW='100px' min={0} mr='2rem' defaultValue={increaseValue} onChange={(val) => setIncreaseValue(+val)}>
                               <NumberInputField />
                               <NumberInputStepper>
                               <NumberIncrementStepper />
@@ -156,7 +262,7 @@ export default function AuctionableErc721Item(props:Props){
                           justifyContent='space-between'
                           pb={4}>
                           <Box>Bid cost:</Box>
-                          <NumberInput maxW='100px' mr='2rem' defaultValue={costValue} onChange={(val) => setCostValue(+val)}>
+                          <NumberInput maxW='100px' min={0} mr='2rem' defaultValue={costValue} onChange={(val) => setCostValue(+val)}>
                               <NumberInputField />
                               <NumberInputStepper>
                               <NumberIncrementStepper />

@@ -5,6 +5,7 @@ import { ethers } from "ethers"
 import { FixedNumber } from "ethers"
 import { OrangeStandTicket as orangeStandTicketAbi} from '../abi/OrangeStandTicket'
 import { OrangeStandSpentTicket as orangeStandSpentTicketAbi} from '../abi/OrangeStandSpentTicket'
+import { ERC20ABI as erc20abi} from '../abi/ERC20ABI'
 import deployedContracts from '../../public/deployed_contracts.json';
 import React from 'react';
 import { AuctionCoordinator as auctionCoordinatorAbi} from '../abi/AuctionCoordinator'
@@ -42,9 +43,11 @@ export default function TicketsView(props:Props) {
   let auctionCoordinatorContract = deployedContracts["auctionCoordinator"];
   let orangeStandTicketContract = deployedContracts["orangeStandTicketAddress"];
   let orangeStandSpentTicketContract = deployedContracts["orangeStandSpentTicketAddress"];
+  let usdTErc20AddressContract = deployedContracts["usdTErc20Address"];
   const [auctionCoordinator, setAuctionCoordinator] = useState<Contract|null>(null);
   const [ticketPurchaseAmount, setTicketPurchaseAmount]=useState<number>(1);
   const [ticketSaleAmount, setTicketSaleAmount]=useState<number>(0);
+  const [buttonEnabled, setButtonEnabled]=useState<boolean>(false);
   let startingBlockNumber = 0;
 
   // Required for events to access the latest TypeScript state
@@ -91,6 +94,7 @@ export default function TicketsView(props:Props) {
       orangeStandSpentTicket.on("TicketRedeemed", ticketRedeemedListener);
     }
     populateAuctions();
+    setButtonEnabled(props.activeAccount != undefined);
   },[props.activeAccount,props.numSellingItems,props.numSettledTransactions,props.numBidsMade])
 
   const ticketIssuedListener = (owner: string, amount: number, blockNumber: number) => {
@@ -123,10 +127,37 @@ export default function TicketsView(props:Props) {
 
   async function buyTickets() {
     const buyTicketAction = async () => {
-      const provider = new ethers.BrowserProvider(window.ethereum)
-      const orangeStandTicket = new ethers.Contract(orangeStandTicketContract, orangeStandTicketAbi, await provider.getSigner());
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const usdT = new ethers.Contract(usdTErc20AddressContract, erc20abi, await provider.getSigner());
+      let balance = await usdT.balanceOf("0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0");
+      console.log("Balance " + balance)
+      /*const provider = new ethers.BrowserProvider(window.ethereum);
       let decimalTranslatedAmount = ethers.parseUnits(ticketPurchaseAmount+"");
-      await orangeStandTicket.mint(props.activeAccount, decimalTranslatedAmount);
+      const usdT = new ethers.Contract(usdTErc20AddressContract, erc20abi, await provider.getSigner());
+      const orangeStandTicket = new ethers.Contract(orangeStandTicketContract, orangeStandTicketAbi, await provider.getSigner());
+
+      await usdT.approve(orangeStandTicketContract, decimalTranslatedAmount)
+      .then(async (returnedResponse) => {
+        await orangeStandTicket.mint(props.activeAccount, decimalTranslatedAmount)
+        .catch((error) => {
+          toast({
+            title: "Orange Stand tickets could not be minted! Please try again",
+            status: 'error',
+            variant: 'subtle',
+            duration: 3000,
+            isClosable: true,
+          });
+        });
+      })
+      .catch((error) => {
+        toast({
+          title: "Transaction couldn't be approved!",
+          status: 'error',
+          variant: 'subtle',
+          duration: 3000,
+          isClosable: true,
+        });
+      });*/
     }
 
     buyTicketAction();
@@ -137,7 +168,16 @@ export default function TicketsView(props:Props) {
       const provider = new ethers.BrowserProvider(window.ethereum)
       const orangeStandSpentTicket = new ethers.Contract(orangeStandSpentTicketContract, orangeStandSpentTicketAbi, await provider.getSigner());
       let decimalTranslatedAmount = ethers.parseUnits(ticketSaleAmount+"");
-      await orangeStandSpentTicket.burn(props.activeAccount, decimalTranslatedAmount);
+      await orangeStandSpentTicket.burn(props.activeAccount, decimalTranslatedAmount)
+        .catch((error) => {
+          toast({
+            title: "Orange Stand tickets could not be burned! Please try again",
+            status: 'error',
+            variant: 'subtle',
+            duration: 3000,
+            isClosable: true,
+          });
+        });
     }
     sellTicketAction();
   }
@@ -154,7 +194,7 @@ export default function TicketsView(props:Props) {
         spacing={4}>
         <Popover>
             <PopoverTrigger>
-                <Button type="button" w='100%' style={{
+                <Button isDisabled={!buttonEnabled} type="button" w='100%' style={{
                     backgroundColor: '#a3c139'
                   }}>
                     Buy Tickets...
@@ -192,7 +232,7 @@ export default function TicketsView(props:Props) {
         </Popover>
         <Popover>
             <PopoverTrigger>
-                <Button type="button" w='100%' style={{
+                <Button isDisabled={!buttonEnabled} type="button" w='100%' style={{
                     backgroundColor: '#a3c139'
                   }}>
                     Sell Tickets...

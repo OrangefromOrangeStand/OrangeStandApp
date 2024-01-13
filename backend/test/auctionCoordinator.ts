@@ -10,10 +10,11 @@ describe('AuctionCoordinator tests', function () {
 
     describe('AuctionCoordinator', function () {
         const contractAddress = process.env.CONTRACT_ADDRESS;
-        const itemAddress = '0xE5C1E03225Af47391E51b79D6D149987cde5B222';
-        const originalOwnerAddress = '0xD336C41f8b1494a7289D39d8De4aADB3792d8515';
+        //const itemAddress = '0xE5C1E03225Af47391E51b79D6D149987cde5B222';
+        //const originalOwnerAddress = '0xD336C41f8b1494a7289D39d8De4aADB3792d8515';
         const treasuryAddress = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266';
         const settlementToken = '0x198eebe8da4db8a475f9b31c864bf089e550719c';
+        const userContractAddress = '0xE5C1E03225Af47391E51b79D6D149987cde5B222';
         const simTokenName = "SIM";
         const bidPrice = 800;
         const bidTimeInMinutes = 4;
@@ -32,12 +33,18 @@ describe('AuctionCoordinator tests', function () {
                 const AuctionCoordinator = await ethers.getContractFactory('AuctionCoordinator');
                 const OrangeStandTicket = await ethers.getContractFactory('OrangeStandTicket');
                 const OrangeStandSpentTicket = await ethers.getContractFactory('OrangeStandSpentTicket');
-                orangeStandTicket = await OrangeStandTicket.deploy()
-                orangeStandSettlementTicket = await OrangeStandSpentTicket.deploy()
+                const CollectionErc20 = await ethers.getContractFactory('CollectionErc20');
+                const userContract = await CollectionErc20.deploy("usdTCollection", "USDT");
+                orangeStandSettlementTicket = await OrangeStandSpentTicket.deploy(await userContract.getAddress());
+                orangeStandTicket = await OrangeStandTicket.deploy(await userContract.getAddress(), await orangeStandSettlementTicket.getAddress())
                 auctionCoordinator = await AuctionCoordinator.deploy(await orangeStandTicket.getAddress(), 
                     treasuryAddress, await orangeStandSettlementTicket.getAddress())
                 firstBidder = addr1.address;
                 secondBidder = addr2.address;
+                await userContract.mint(firstBidder, bidPrice);
+                await userContract.connect(addr1).approve(await orangeStandTicket.getAddress(), bidPrice);
+                await userContract.mint(secondBidder, bidPrice);
+                await userContract.connect(addr2).approve(await orangeStandTicket.getAddress(), bidPrice);
                 await orangeStandTicket.mint(firstBidder, bidPrice);
                 await orangeStandTicket.mint(secondBidder, bidPrice);
                 await orangeStandTicket.addBurner(await auctionCoordinator.getAddress());
@@ -50,15 +57,14 @@ describe('AuctionCoordinator tests', function () {
             it('Should connect to external contract', async function () {
                 auctionCoordinator = await ethers.getContractAt('AuctionCoordinator', contractAddress, 
                     treasuryAddress, settlementToken);
-                console.log('Connected to external contract', auctionCoordinator.address);
             });
         } else {
             it('Should deploy AuctionCoordinator', async function () {
                 const AuctionCoordinator = await ethers.getContractFactory('AuctionCoordinator');
                 const OrangeStandTicket = await ethers.getContractFactory('OrangeStandTicket');
                 const OrangeStandSpentTicket = await ethers.getContractFactory('OrangeStandSpentTicket');
-                orangeStandSettlementTicket = await OrangeStandSpentTicket.deploy()
-                orangeStandTicket = await OrangeStandTicket.deploy()
+                orangeStandSettlementTicket = await OrangeStandSpentTicket.deploy(userContractAddress)
+                orangeStandTicket = await OrangeStandTicket.deploy(userContractAddress, await orangeStandSettlementTicket.getAddress())
                 auctionCoordinator = await AuctionCoordinator.deploy(await orangeStandTicket.getAddress(), 
                     treasuryAddress, await orangeStandSettlementTicket.getAddress())
             });

@@ -5,12 +5,10 @@ import { Contract } from 'ethers';
 describe('OrangeStandTicket tests', function () {
     
     let orangeStandTicket: Contract;
+    let userContract: Contract;
 
     describe('OrangeStandTicket', function () {
         const contractAddress = process.env.CONTRACT_ADDRESS;
-        const testAddress1 = '0xE5C1E03225Af47391E51b79D6D149987cde5B222';
-        const testAddress2 = '0xD336C41f8b1494a7289D39d8De4aADB3792d8515';
-        const testAddress3 = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266';
 
         if (contractAddress) {
             it('Should connect to external contract', async function () {
@@ -19,42 +17,54 @@ describe('OrangeStandTicket tests', function () {
             });
         } else {
             it('Should deploy OrangeStandTicket', async function () {
+                const OrangeStandSpentTicket = await ethers.getContractFactory('OrangeStandSpentTicket');
+                const CollectionErc20 = await ethers.getContractFactory('CollectionErc20');
+                userContract = await CollectionErc20.deploy("usdTCollection", "USDT");
+                const orangeStandSpentTicket = await OrangeStandSpentTicket.deploy(await userContract.getAddress());
                 const OrangeStandTicket = await ethers.getContractFactory('OrangeStandTicket');
-                orangeStandTicket = await OrangeStandTicket.deploy()
+                orangeStandTicket = await OrangeStandTicket.deploy(await userContract.getAddress(), await orangeStandSpentTicket.getAddress());
             });
         }
 
         describe('mint()', function () {
             it('Should mint one ticket', async function () {
-                var initialBalance = await orangeStandTicket.balanceOf(testAddress1);
-                await orangeStandTicket.mint(testAddress1, 1);
-                var balanceAfterMint = await orangeStandTicket.balanceOf(testAddress1);
+                const [owner, addr1] = await ethers.getSigners();
+                var initialBalance = await orangeStandTicket.balanceOf(addr1.address);
+                let bidPrice = 1;
+                await userContract.mint(addr1.address, bidPrice);
+                await userContract.connect(addr1).approve(await orangeStandTicket.getAddress(), bidPrice);
+                await orangeStandTicket.mint(addr1.address, bidPrice);
+                var balanceAfterMint = await orangeStandTicket.balanceOf(addr1.address);
                 expect(initialBalance).to.equal(0);
                 expect(balanceAfterMint).to.equal(1);
             })
 
             it('Should mint no tickets', async function () {
-                var initialBalance = await orangeStandTicket.balanceOf(testAddress2);
-                await orangeStandTicket.mint(testAddress2, 0);
-                var balanceAfterMint = await orangeStandTicket.balanceOf(testAddress2);
+                const [owner, addr1, addr2] = await ethers.getSigners();
+                var initialBalance = await orangeStandTicket.balanceOf(addr2.address);
+                await orangeStandTicket.mint(addr2.address, 0);
+                var balanceAfterMint = await orangeStandTicket.balanceOf(addr2.address);
                 expect(initialBalance).to.equal(0);
                 expect(balanceAfterMint).to.equal(0);
             })
 
             it('Only owner can mint tokens', async function () {
-                const [_, nonOwnerCaller] = await ethers.getSigners();
-                await expect(orangeStandTicket.connect(nonOwnerCaller).mint(testAddress1, 1)).to.be.reverted;
+                const [_, addr1, nonOwnerCaller] = await ethers.getSigners();
+                await expect(orangeStandTicket.connect(nonOwnerCaller).mint(addr1.address, 1)).to.be.reverted;
             })
         });
 
         describe('burn()', function () {
             it('Should burn all tickets', async function () {
-                const [owner] = await ethers.getSigners();
+                const [owner, addr1, addr2, addr3] = await ethers.getSigners();
                 await orangeStandTicket.addBurner(owner.address);
-                await orangeStandTicket.mint(testAddress3, 1);
-                var balanceAfterMint = await orangeStandTicket.balanceOf(testAddress3);
-                await orangeStandTicket.burn(testAddress3, 1);
-                var balanceAfterBurn = await orangeStandTicket.balanceOf(testAddress3);
+                let bidPrice = 1;
+                await userContract.mint(addr3.address, bidPrice);
+                await userContract.connect(addr3).approve(await orangeStandTicket.getAddress(), bidPrice);
+                await orangeStandTicket.mint(addr3.address, 1);
+                var balanceAfterMint = await orangeStandTicket.balanceOf(addr3.address);
+                await orangeStandTicket.burn(addr3.address, 1);
+                var balanceAfterBurn = await orangeStandTicket.balanceOf(addr3.address);
                 expect(balanceAfterMint).to.equal(1);
                 expect(balanceAfterBurn).to.equal(0);
             })

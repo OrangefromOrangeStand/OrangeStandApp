@@ -5,6 +5,7 @@ import { Contract } from 'ethers';
 describe('OrangeStandSpentTicket tests', function () {
     
     let orangeStandSpentTicket: Contract;
+    let userContract: Contract;
 
     describe('OrangeStandSpentTicket', function () {
         const contractAddress = process.env.CONTRACT_ADDRESS;
@@ -20,7 +21,9 @@ describe('OrangeStandSpentTicket tests', function () {
         } else {
             it('Should deploy OrangeStandSpentTicket', async function () {
                 const OrangeStandSpentTicket = await ethers.getContractFactory('OrangeStandSpentTicket');
-                orangeStandSpentTicket = await OrangeStandSpentTicket.deploy()
+                const CollectionErc20 = await ethers.getContractFactory('CollectionErc20');
+                userContract = await CollectionErc20.deploy("usdTCollection", "USDT");
+                orangeStandSpentTicket = await OrangeStandSpentTicket.deploy(await userContract.getAddress())
             });
         }
 
@@ -49,21 +52,15 @@ describe('OrangeStandSpentTicket tests', function () {
         describe('burn()', function () {
             it('Should burn all tickets', async function () {
                 const [owner] = await ethers.getSigners();
+                const bidPrice = 1;
+                await userContract.mint((await orangeStandSpentTicket.getAddress()), bidPrice);
                 await orangeStandSpentTicket.addMinter(owner.address);
-                await orangeStandSpentTicket.mint(testAddress3, 1);
+                await orangeStandSpentTicket.mint(testAddress3, bidPrice);
                 var balanceAfterMint = await orangeStandSpentTicket.balanceOf(testAddress3);
-                await orangeStandSpentTicket.burn(testAddress3, 1);
+                await orangeStandSpentTicket.burn(testAddress3, bidPrice);
                 var balanceAfterBurn = await orangeStandSpentTicket.balanceOf(testAddress3);
-                expect(balanceAfterMint).to.equal(1);
+                expect(balanceAfterMint).to.equal(bidPrice);
                 expect(balanceAfterBurn).to.equal(0);
-            })
-
-            it('Only owner can burn tokens', async function () {
-                const [owner, nonOwnerCaller] = await ethers.getSigners();
-                await orangeStandSpentTicket.addMinter(owner.address);
-                await orangeStandSpentTicket.mint(testAddress3, 1);
-                var balanceAfterMint = await orangeStandSpentTicket.balanceOf(testAddress3);
-                await expect(orangeStandSpentTicket.connect(nonOwnerCaller).burn(testAddress3, 1)).to.be.reverted;
             })
         });
     });
