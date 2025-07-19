@@ -2,284 +2,156 @@ import { ethers } from 'hardhat';
 import { expect } from 'chai';
 import { Contract } from 'ethers';
 
-describe('Item tests', function () {
-    
+// Typescript
+
+describe('Item Exhaustive Test Suite', function () {
     let item: Contract;
-    
-    describe('Item', function () {
-        const contractAddress = process.env.CONTRACT_ADDRESS;
-        //const itemId = 3;
-        const testAddress1 = '0xE5C1E03225Af47391E51b79D6D149987cde5B222';
-        const testAddress2 = '0xD336C41f8b1494a7289D39d8De4aADB3792d8515';
+    let owner: any;
+    let nonOwner: any;
+    const testAddress1 = '0xE5C1E03225Af47391E51b79D6D149987cde5B222';
+    const testAddress2 = '0xD336C41f8b1494a7289D39d8De4aADB3792d8515';
 
-        if (contractAddress) {
-            it('Should connect to external contract', async function () {
-                item = await ethers.getContractAt('Item', contractAddress);
-                console.log('Connected to external contract', item.address);
-            });
-        } else {
-            it('Should deploy Item', async function () {
-                const Item = await ethers.getContractFactory('Item');
-                item = await Item.deploy()
-            });
-        }
+    beforeEach(async function () {
+        [owner, nonOwner] = await ethers.getSigners();
+        const Item = await ethers.getContractFactory('Item');
+        item = await Item.deploy();
+    });
 
-        describe('getItem()', function () {
-            it('Should get an empty item', async function () {
-                const Item = await ethers.getContractFactory('Item');
-                item = await Item.deploy()
-                var result = await item.getItem(1);
-                expect(result).to.equal('0x0000000000000000000000000000000000000000');
-            })
-
-            it('Should get ERC20 item', async function () {
-                const Item = await ethers.getContractFactory('Item');
-                item = await Item.deploy()
-                const SingleErc20Item = await ethers.getContractFactory('SingleErc20Item');
-                var itemQuantity = 10;
-                await item.addErc20(testAddress1, itemQuantity);
-                
-                var result = await item.getItem(1);
-                var tokenItem = await SingleErc20Item.attach(result);
-                var tokenAddress = await tokenItem.getTokenAddress();
-                var tokenQuantity = await tokenItem.getQuantity();
-
-                expect(tokenAddress).to.equal(testAddress1);
-                expect(tokenQuantity).to.equal(itemQuantity);
-            })
-
-            it('Should get ERC721 item', async function () {
-                const Item = await ethers.getContractFactory('Item');
-                item = await Item.deploy()
-                const SingleErc721Item = await ethers.getContractFactory('SingleErc721Item');
-                var tokenNum = 1;
-                await item.addErc721(testAddress2, tokenNum);
-
-                var result = await item.getItem(1);
-                var tokenItem = await SingleErc721Item.attach(result);
-                var tokenAddress = await tokenItem.getTokenAddress();
-                var tokenId = await tokenItem.getTokenId();
-
-                expect(tokenAddress).to.equal(testAddress2);
-                expect(tokenId).to.equal(tokenNum);
-            })
-        });
-
-        describe('addErc20()', function () {
-            it('Should get added ERC20', async function () {
-                const Item = await ethers.getContractFactory('Item');
-                item = await Item.deploy()
-                const SingleErc20Item = await ethers.getContractFactory('SingleErc20Item');
-                var itemQuantity = 10;
-
-                await item.addErc20(testAddress1, itemQuantity);
-                var count = await item.numErc20Tokens();
-                var result = await item.getErc20Item(count);
-                var tokenItem = await SingleErc20Item.attach(result);
-                var tokenAddress = await tokenItem.getTokenAddress();
-                var tokenQuantity = await tokenItem.getQuantity();
-
-                expect(tokenAddress).to.equal(testAddress1);
-                expect(tokenQuantity).to.equal(itemQuantity);
-            })
-
-            it('Should get added ERC20 when ERC721 also added', async function () {
-                const Item = await ethers.getContractFactory('Item');
-                item = await Item.deploy()
-                const SingleErc20Item = await ethers.getContractFactory('SingleErc20Item');
-                var itemQuantity = 10;
-                var tokenNum = 2;
-
-                await item.addErc20(testAddress1, itemQuantity);
-                await item.addErc721(testAddress2, tokenNum);
-                var count = await item.numErc20Tokens();
-                var result = await item.getErc20Item(count);
-                var tokenItem = await SingleErc20Item.attach(result);
-                var tokenAddress = await tokenItem.getTokenAddress();
-                var tokenQuantity = await tokenItem.getQuantity();
-
-                expect(tokenAddress).to.equal(testAddress1);
-                expect(tokenQuantity).to.equal(itemQuantity);
-            })
-
-            it('Should get added ERC20 with different quantities', async function () {
-                const Item = await ethers.getContractFactory('Item');
-                item = await Item.deploy()
-                const SingleErc20Item = await ethers.getContractFactory('SingleErc20Item');
-                var itemQuantity1 = 10;
-                var itemQuantity2 = 50;
-
-                await item.addErc20(testAddress1, itemQuantity1);
-                await item.addErc20(testAddress1, itemQuantity2);
-                var result1 = await item.getErc20Item(1);
-                var tokenItem1 = await SingleErc20Item.attach(result1);
-                var tokenAddress1 = await tokenItem1.getTokenAddress();
-                var tokenQuantity1 = await tokenItem1.getQuantity();
-                var result2 = await item.getErc20Item(2);
-                var tokenItem2 = await SingleErc20Item.attach(result2);
-                var tokenAddress2 = await tokenItem2.getTokenAddress();
-                var tokenQuantity2 = await tokenItem2.getQuantity();
-
-                expect(tokenAddress1).to.equal(testAddress1);
-                expect(tokenQuantity1).to.equal(itemQuantity1);
-                expect(tokenAddress2).to.equal(testAddress1);
-                expect(tokenQuantity2).to.equal(itemQuantity2);
-            })
-
-            it('Should get added ERC20 with different tokens', async function () {
-                const Item = await ethers.getContractFactory('Item');
-                item = await Item.deploy()
-                const SingleErc20Item = await ethers.getContractFactory('SingleErc20Item');
-                var itemQuantity1 = 10;
-                var itemQuantity2 = 50;
-
-                await item.addErc20(testAddress1, itemQuantity1);
-                await item.addErc20(testAddress2, itemQuantity2);
-                var result1 = await item.getErc20Item(1);
-                var tokenItem1 = await SingleErc20Item.attach(result1);
-                var tokenAddress1 = await tokenItem1.getTokenAddress();
-                var tokenQuantity1 = await tokenItem1.getQuantity();
-                var result2 = await item.getErc20Item(2);
-                var tokenItem2 = await SingleErc20Item.attach(result2);
-                var tokenAddress2 = await tokenItem2.getTokenAddress();
-                var tokenQuantity2 = await tokenItem2.getQuantity();
-
-                expect(tokenAddress1).to.equal(testAddress1);
-                expect(tokenQuantity1).to.equal(itemQuantity1);
-                expect(tokenAddress2).to.equal(testAddress2);
-                expect(tokenQuantity2).to.equal(itemQuantity2);
-            })
-
-            it('Only owner can add ERC20 tokens', async function () {
-                const [_, nonOwnerCaller] = await ethers.getSigners();
-                const Item = await ethers.getContractFactory('Item');
-                item = await Item.deploy()
-                var itemQuantity = 10;
-                await expect(item.connect(nonOwnerCaller).addErc20(testAddress1, itemQuantity)).to.be.reverted;
-            })
-        });
-
-        describe('addErc721()', function () {
-            it('Should get added ERC721', async function () {
-                const Item = await ethers.getContractFactory('Item');
-                item = await Item.deploy();
-                const SingleErc721Item = await ethers.getContractFactory('SingleErc721Item');
-                var tokenNum = 2;
-
-                await item.addErc721(testAddress1, tokenNum);
-                var count = await item.numErc721Tokens();
-                var result = await item.getErc721Item(count);
-                var tokenItem = await SingleErc721Item.attach(result);
-                var tokenAddress = await tokenItem.getTokenAddress();
-                var tokenId = await tokenItem.getTokenId();
-
-                expect(tokenAddress).to.equal(testAddress1);
-                expect(tokenId).to.equal(tokenNum);
-            })
-
-            it('Should get added ERC721 when ERC20 also added', async function () {
-                const Item = await ethers.getContractFactory('Item');
-                item = await Item.deploy()
-                var itemQuantity = 10;
-                const SingleErc721Item = await ethers.getContractFactory('SingleErc721Item');
-                var tokenNum = 2;
-
-                await item.addErc20(testAddress2, itemQuantity);
-                await item.addErc721(testAddress1, tokenNum);
-                var result = await item.getErc721Item(2);
-                var tokenItem = await SingleErc721Item.attach(result);
-                var tokenAddress = await tokenItem.getTokenAddress();
-                var tokenId = await tokenItem.getTokenId();
-
-                expect(tokenAddress).to.equal(testAddress1);
-                expect(tokenId).to.equal(tokenNum);
-            })
-
-            it('Should get added ERC721 with different token ids', async function () {
-                const Item = await ethers.getContractFactory('Item');
-                item = await Item.deploy()
-                var tokenNum1 = 2;
-                var tokenNum2 = 4;
-                const SingleErc721Item = await ethers.getContractFactory('SingleErc721Item');
-                
-                await item.addErc721(testAddress1, tokenNum1);
-                await item.addErc721(testAddress1, tokenNum2);
-                var result1 = await item.getErc721Item(1);
-                var tokenItem1 = await SingleErc721Item.attach(result1);
-                var tokenAddress1 = await tokenItem1.getTokenAddress();
-                var tokenId1 = await tokenItem1.getTokenId();
-                var result2 = await item.getErc721Item(2);
-                var tokenItem2 = await SingleErc721Item.attach(result2);
-                var tokenAddress2 = await tokenItem2.getTokenAddress();
-                var tokenId2 = await tokenItem2.getTokenId();
-
-                expect(tokenAddress1).to.equal(testAddress1);
-                expect(tokenId1).to.equal(tokenNum1);
-                expect(tokenAddress2).to.equal(testAddress1);
-                expect(tokenId2).to.equal(tokenNum2);
-            })
-
-            it('Should get added ERC721 with different addresses', async function () {
-                const Item = await ethers.getContractFactory('Item');
-                item = await Item.deploy()
-                const SingleErc721Item = await ethers.getContractFactory('SingleErc721Item');
-                var tokenNum1 = 2;
-                var tokenNum2 = 4;
-
-                await item.addErc721(testAddress1, tokenNum1);
-                await item.addErc721(testAddress2, tokenNum2);
-                var result1 = await item.getErc721Item(1);
-                var tokenItem1 = await SingleErc721Item.attach(result1);
-                var tokenAddress1 = await tokenItem1.getTokenAddress();
-                var tokenId1 = await tokenItem1.getTokenId();
-                var result2 = await item.getErc721Item(2);
-                var tokenItem2 = await SingleErc721Item.attach(result2);
-                var tokenAddress2 = await tokenItem2.getTokenAddress();
-                var tokenId2 = await tokenItem2.getTokenId();
-
-                expect(tokenAddress1).to.equal(testAddress1);
-                expect(tokenId1).to.equal(tokenNum1);
-                expect(tokenAddress2).to.equal(testAddress2);
-                expect(tokenId2).to.equal(tokenNum2);
-            })
-
-            it('Only owner can add ERC721 tokens', async function () {
-                const [_, nonOwnerCaller] = await ethers.getSigners();
-                const Item = await ethers.getContractFactory('Item');
-                item = await Item.deploy();
-                var tokenNum = 2;
-                await expect(item.connect(nonOwnerCaller).addErc721(testAddress1, tokenNum)).to.be.reverted;
-            })
+    describe('Deployment', function () {
+        it('Owner should be deployer', async function () {
+            expect(await item.owner()).to.equal(owner.address);
         });
     });
 
-    describe('SingleErc20Item', function () {
-        it('TokenAddress and quantity should be correct', async function () {
+    describe('ERC20 Functionality', function () {
+        it('Should add and retrieve ERC20 token', async function () {
             const SingleErc20Item = await ethers.getContractFactory('SingleErc20Item');
-            let address = '0xE5C1E03225Af47391E51b79D6D149987cde5B222';
-            let quantity = 20;
-            var singleErc20Item = await SingleErc20Item.deploy(address, quantity);
+            const quantity = 100;
+            await item.addErc20(testAddress1, quantity);
+            const count = await item.numErc20Tokens();
+            expect(count).to.equal(1);
+            const result = await item.getErc20Item(1);
+            const tokenItem = await SingleErc20Item.attach(result);
+            expect(await tokenItem.getTokenAddress()).to.equal(testAddress1);
+            expect(await tokenItem.getQuantity()).to.equal(quantity);
+        });
 
-            var returnedTokenAddress = await singleErc20Item.getTokenAddress();
-            var returnedQuantity = await singleErc20Item.getQuantity();
+        it('Should add multiple ERC20 tokens with same address, different quantities', async function () {
+            const SingleErc20Item = await ethers.getContractFactory('SingleErc20Item');
+            await item.addErc20(testAddress1, 10);
+            await item.addErc20(testAddress1, 20);
+            expect(await item.numErc20Tokens()).to.equal(2);
+            const tokenItem1 = await SingleErc20Item.attach(await item.getErc20Item(1));
+            const tokenItem2 = await SingleErc20Item.attach(await item.getErc20Item(2));
+            expect(await tokenItem1.getQuantity()).to.equal(10);
+            expect(await tokenItem2.getQuantity()).to.equal(20);
+        });
 
-            expect(returnedTokenAddress).to.equal(address);
-            expect(returnedQuantity).to.equal(quantity);
-        })
+        it('Should add multiple ERC20 tokens with different addresses', async function () {
+            const SingleErc20Item = await ethers.getContractFactory('SingleErc20Item');
+            await item.addErc20(testAddress1, 10);
+            await item.addErc20(testAddress2, 30);
+            expect(await item.numErc20Tokens()).to.equal(2);
+            const tokenItem1 = await SingleErc20Item.attach(await item.getErc20Item(1));
+            const tokenItem2 = await SingleErc20Item.attach(await item.getErc20Item(2));
+            expect(await tokenItem1.getTokenAddress()).to.equal(testAddress1);
+            expect(await tokenItem2.getTokenAddress()).to.equal(testAddress2);
+        });
+
+        it('Should get ERC20 item via getItem', async function () {
+            const SingleErc20Item = await ethers.getContractFactory('SingleErc20Item');
+            await item.addErc20(testAddress1, 50);
+            const result = await item.getItem(1);
+            const tokenItem = await SingleErc20Item.attach(result);
+            expect(await tokenItem.getTokenAddress()).to.equal(testAddress1);
+            expect(await tokenItem.getQuantity()).to.equal(50);
+        });
+
+        it('Only owner can add ERC20 tokens', async function () {
+            await expect(item.connect(nonOwner).addErc20(testAddress1, 10)).to.be.reverted;
+        });
     });
 
-    describe('SingleErc721Item', function () {
-        it('TokenAddress and id should be correct', async function () {
+    describe('ERC721 Functionality', function () {
+        it('Should add and retrieve ERC721 token', async function () {
             const SingleErc721Item = await ethers.getContractFactory('SingleErc721Item');
-            let address = '0xE5C1E03225Af47391E51b79D6D149987cde5B222';
-            let id = 13;
-            var singleErc721Item = await SingleErc721Item.deploy(address, id);
+            await item.addErc721(testAddress2, 5);
+            expect(await item.numErc721Tokens()).to.equal(1);
+            const result = await item.getErc721Item(1);
+            const tokenItem = await SingleErc721Item.attach(result);
+            expect(await tokenItem.getTokenAddress()).to.equal(testAddress2);
+            expect(await tokenItem.getTokenId()).to.equal(5);
+        });
 
-            var returnedTokenAddress = await singleErc721Item.getTokenAddress();
-            var returnedId = await singleErc721Item.getTokenId();
+        it('Should add multiple ERC721 tokens with same address, different ids', async function () {
+            const SingleErc721Item = await ethers.getContractFactory('SingleErc721Item');
+            await item.addErc721(testAddress2, 1);
+            await item.addErc721(testAddress2, 2);
+            expect(await item.numErc721Tokens()).to.equal(2);
+            const tokenItem1 = await SingleErc721Item.attach(await item.getErc721Item(1));
+            const tokenItem2 = await SingleErc721Item.attach(await item.getErc721Item(2));
+            expect(await tokenItem1.getTokenId()).to.equal(1);
+            expect(await tokenItem2.getTokenId()).to.equal(2);
+        });
 
-            expect(returnedTokenAddress).to.equal(address);
-            expect(returnedId).to.equal(id);
-        })
+        it('Should add multiple ERC721 tokens with different addresses', async function () {
+            const SingleErc721Item = await ethers.getContractFactory('SingleErc721Item');
+            await item.addErc721(testAddress1, 10);
+            await item.addErc721(testAddress2, 20);
+            expect(await item.numErc721Tokens()).to.equal(2);
+            const tokenItem1 = await SingleErc721Item.attach(await item.getErc721Item(1));
+            const tokenItem2 = await SingleErc721Item.attach(await item.getErc721Item(2));
+            expect(await tokenItem1.getTokenAddress()).to.equal(testAddress1);
+            expect(await tokenItem2.getTokenAddress()).to.equal(testAddress2);
+        });
+
+        it('Should get ERC721 item via getItem', async function () {
+            const SingleErc721Item = await ethers.getContractFactory('SingleErc721Item');
+            await item.addErc721(testAddress2, 99);
+            const result = await item.getItem(1);
+            const tokenItem = await SingleErc721Item.attach(result);
+            expect(await tokenItem.getTokenAddress()).to.equal(testAddress2);
+            expect(await tokenItem.getTokenId()).to.equal(99);
+        });
+
+        it('Only owner can add ERC721 tokens', async function () {
+            await expect(item.connect(nonOwner).addErc721(testAddress2, 1)).to.be.reverted;
+        });
+    });
+
+    describe('Empty/Invalid Retrieval', function () {
+        it('getItem returns zero address for non-existent id', async function () {
+            expect(await item.getItem(999)).to.equal('0x0000000000000000000000000000000000000000');
+        });
+
+        it('getErc20Item returns zero address for non-existent id', async function () {
+            expect(await item.getErc20Item(999)).to.equal('0x0000000000000000000000000000000000000000');
+        });
+
+        it('getErc721Item returns zero address for non-existent id', async function () {
+            expect(await item.getErc721Item(999)).to.equal('0x0000000000000000000000000000000000000000');
+        });
+    });
+
+    describe('SingleErc20Item Contract', function () {
+        it('Should deploy and return correct address and quantity', async function () {
+            const SingleErc20Item = await ethers.getContractFactory('SingleErc20Item');
+            const address = testAddress1;
+            const quantity = 123;
+            const singleErc20Item = await SingleErc20Item.deploy(address, quantity);
+            expect(await singleErc20Item.getTokenAddress()).to.equal(address);
+            expect(await singleErc20Item.getQuantity()).to.equal(quantity);
+        });
+    });
+
+    describe('SingleErc721Item Contract', function () {
+        it('Should deploy and return correct address and id', async function () {
+            const SingleErc721Item = await ethers.getContractFactory('SingleErc721Item');
+            const address = testAddress2;
+            const id = 456;
+            const singleErc721Item = await SingleErc721Item.deploy(address, id);
+            expect(await singleErc721Item.getTokenAddress()).to.equal(address);
+            expect(await singleErc721Item.getTokenId()).to.equal(id);
+        });
     });
 });
