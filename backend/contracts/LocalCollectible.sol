@@ -1,17 +1,11 @@
 pragma solidity >=0.8.0 <0.9.0;
 //SPDX-License-Identifier: MIT
 
-// import "hardhat/console.sol";
 import '@openzeppelin/contracts/token/ERC721/ERC721.sol';
 import '@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol';
 import '@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol';
 import '@openzeppelin/contracts/utils/Counters.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
-
-//learn more: https://docs.openzeppelin.com/contracts/3.x/erc721
-
-// GET LISTED ON OPENSEA: https://testnets.opensea.io/get-listed/step-two
-// NOPO comment   as
 
 contract LocalCollectible is ERC721, ERC721Enumerable, ERC721URIStorage, Ownable {
   using Counters for Counters.Counter;
@@ -46,11 +40,9 @@ contract LocalCollectible is ERC721, ERC721Enumerable, ERC721URIStorage, Ownable
 
   function mintItem(address to, string memory tokenURI) public returns (uint256) {
     _tokenIds.increment();
-
     uint256 id = _tokenIds.current();
     _mint(to, id);
     _setTokenURI(id, tokenURI);
-
     return id;
   }
 }

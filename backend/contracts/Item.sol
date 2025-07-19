@@ -6,14 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableMap.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-/*
-  Hold ERC20 or ERC721 contracts.
-  Handle ownership transfers.
-  Hold all items and counts that are being auctioned
-    - mapping of item to count (will probably have to be an ienumerable map)
-*/
 contract Item is Ownable {
-  // Add the library methods
   using EnumerableMap for EnumerableMap.UintToAddressMap;
   using Counters for Counters.Counter;
   

@@ -8,11 +8,12 @@ import "./OrangeStandSpentTicket.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 
-contract Auction is Ownable {
+contract Auction is Ownable, AccessControl {
   event BidUpdate(uint256 _id, address _newBid, address _oldBid, address _newBidder, address _oldBidder);
   event AuctionSettled(uint256 _id, address _bidder, uint256 _finalPrice);
   event AuctionOnGoing(uint256 _id);
   event AuctionFinished(uint256 _id);
+  event AuctionCompleted(uint256 _id);
 
   uint256 private _id;
   Bid private _activeBid;
@@ -28,6 +29,8 @@ contract Auction is Ownable {
   address private _settlementToken;
   uint256 private _activePrice;
   address private _treasuryAddress;
+  bytes32 public constant ITEM_OWNER = keccak256("ITEM_OWNER");
+  bytes32 public constant ACTIVE_BIDDER = keccak256("ACTIVE_BIDDER");
 
   constructor(
     uint256 id,
@@ -53,6 +56,8 @@ contract Auction is Ownable {
     _activePrice = initialPrice;
     _treasuryAddress = treasuryAddress;
     _settlementToken = settlementToken;
+    _grantRole(ITEM_OWNER, originalOwner);
+    _grantRole(ACTIVE_BIDDER, originalOwner);
   }
 
   function getId() public view returns (uint256) {
@@ -107,10 +112,14 @@ contract Auction is Ownable {
     return _activePrice;
   }
 
-  function makeNewBid(address newBidAddress) public {
+  function isSettled() public view returns (bool) {
+    return _settled;
+  }
+
+  function makeNewBid(address newBidAddress) public onlyOwner {
     if (!isFinished()) {
       address oldBidAddress;
-      address oldBidder;
+      address oldBidder = getOriginalOwner();
       if(address(_activeBid) != address(0x0)){
         oldBidAddress = address(_activeBid);
         oldBidder = Bid(_activeBid).getBidderAddress();
@@ -120,13 +129,16 @@ contract Auction is Ownable {
       OrangeStandTicket paymentContract = OrangeStandTicket(_paymentToken);
       paymentContract.transferFrom(_activeBid.getBidderAddress(), address(this), getPriceIncrease());
       _currentCycleStartTime = block.timestamp;
+      _revokeRole(ACTIVE_BIDDER, oldBidder);
+      _grantRole(ACTIVE_BIDDER, _activeBid.getBidderAddress());
       emit BidUpdate(_id, newBidAddress, oldBidAddress, _activeBid.getBidderAddress(), oldBidder);
     } else {
       emit AuctionFinished(_id);
     }
   }
 
-  function settle() public onlyOwner {
+  function settle(address originalCaller) public onlyOwner {
+    require(hasRole(ITEM_OWNER, originalCaller) || hasRole(ACTIVE_BIDDER, originalCaller), "Caller is not allowed to settle auction");
     if(!isFinished()){
       emit AuctionOnGoing(_id);
     } else {
@@ -134,24 +146,23 @@ contract Auction is Ownable {
         _settled = true;
         OrangeStandTicket paymentContract = OrangeStandTicket(_paymentToken);
         uint256 balance = paymentContract.balanceOf(address(this));
-        // will have to be modified
-        paymentContract.transfer(getOriginalOwner(), (balance * 99) / 100);
-        paymentContract.transfer(_treasuryAddress, (balance * 1) / 100);
-
         // new code to be used
-        /*paymentContract.burn(address(this), balance);
-        OrangeStandSpentTicket settledContract = OrangeStandSpentTicket(_settlementToken);
-        settledContract.mint(getOriginalOwner(), (balance * 99) / 100);
-        settledContract.mint(_treasuryAddress, (balance * 1) / 100);*/
+        paymentContract.burn(address(this), balance);
+        OrangeStandSpentTicket settlementPaymentContract = OrangeStandSpentTicket(_settlementToken);
+        settlementPaymentContract.mint(getOriginalOwner(), (balance * 99) / 100);
+        settlementPaymentContract.mint(_treasuryAddress, (balance * 1) / 100);
+        Bid finalBid = Bid(_activeBid);
+        address bidderAddress = getOriginalOwner();
+        uint256 finalBidPrice = 0;
+        if(address(finalBid) != address(0x0)){
+          bidderAddress = finalBid.getBidderAddress();
+          finalBidPrice = _activePrice;
+        }
+        // Item ownership transfer done in auctionTracker.removeAuction
+        emit AuctionSettled(_id, bidderAddress, finalBidPrice);
+      } else {
+        emit AuctionCompleted(_id);
       }
-      Bid finalBid = Bid(_activeBid);
-      address bidderAddress = getOriginalOwner();
-      uint256 finalBidPrice = 0;
-      if(address(finalBid) != address(0x0)){
-        bidderAddress = finalBid.getBidderAddress();
-        finalBidPrice = _activePrice;
-      }
-      emit AuctionSettled(_id, bidderAddress, finalBidPrice);
     }
   }
 }

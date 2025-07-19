@@ -10,8 +10,8 @@ contract OrangeStandSpentTicket is ERC20, Ownable, AccessControl {
     event TicketRedeemed(address owner, uint256 amount, uint blockNumber);
     address private _userContractAddress;
 
-    constructor(address userContractAddress) public ERC20('OrangeStandSpentTicket', 'OSST') { 
-        _userContractAddress = userContractAddress;
+    constructor(address genericPaymentContractAddress) public ERC20('OrangeStandSpentTicket', 'OSST') { 
+        _userContractAddress = genericPaymentContractAddress;
     }
 
     function addMinter(address newMinter) public onlyOwner {
@@ -23,10 +23,13 @@ contract OrangeStandSpentTicket is ERC20, Ownable, AccessControl {
         _mint(account, amount);
     }
 
-    //function burn(address account, uint256 amount) public onlyOwner {
     function burn(address account, uint256 amount) public {
-        IERC20(_userContractAddress).transfer(account, amount);
         _burn(account, amount);
+        IERC20(_userContractAddress).transfer(account, amount);
         emit TicketRedeemed(account, amount, block.number);
+    }
+
+    function decimals() public view virtual override returns (uint8) {
+        return ERC20(_userContractAddress).decimals();
     }
 }

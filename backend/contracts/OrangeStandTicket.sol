@@ -11,8 +11,8 @@ contract OrangeStandTicket is ERC20, Ownable, AccessControl {
     address private _userContractAddress;
     address private _spentTicketAddress;
 
-    constructor(address userContractAddress, address spentTicketAddress) public ERC20('OrangeStandTicket', 'OSTI') {
-        _userContractAddress = userContractAddress;
+    constructor(address genericPaymentContractAddress, address spentTicketAddress) public ERC20('OrangeStandTicket', 'OSTI') {
+        _userContractAddress = genericPaymentContractAddress;
         _spentTicketAddress = spentTicketAddress;
      }
 
@@ -20,16 +20,18 @@ contract OrangeStandTicket is ERC20, Ownable, AccessControl {
         _grantRole(BURNER_ROLE, newBurner);
     }
 
-    //function mint(address account, uint256 amount) public onlyOwner {
     function mint(address account, uint256 amount) public {
-        IERC20(_userContractAddress).transferFrom(account, _spentTicketAddress, amount);
         _mint(account, amount);
+        IERC20(_userContractAddress).transferFrom(account, _spentTicketAddress, amount);
         emit TicketIssued(account, amount, block.number);
     }
 
     function burn(address account, uint256 amount) public {
         require(hasRole(BURNER_ROLE, msg.sender), "Caller is not a burner");
-
         _burn(account, amount);
+    }
+
+    function decimals() public view virtual override returns (uint8) {
+        return ERC20(_userContractAddress).decimals();
     }
 }
