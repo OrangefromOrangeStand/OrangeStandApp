@@ -4,7 +4,7 @@ import { Contract } from 'ethers';
 
 // Typescript
 
-describe('Item Exhaustive Test Suite', function () {
+describe('Item', function () {
     let item: Contract;
     let owner: any;
     let nonOwner: any;
