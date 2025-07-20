@@ -1,67 +1,132 @@
-import { ethers } from 'hardhat';
-import { expect } from 'chai';
-import { Contract } from 'ethers';
+import { ethers } from "hardhat";
+import { expect } from "chai";
+import { Contract, Signer } from "ethers";
 
-describe('OrangeStandSpentTicket tests', function () {
-    
-    let orangeStandSpentTicket: Contract;
-    let userContract: Contract;
+describe("OrangeStandSpentTicket", function () {
+  let OrangeStandSpentTicket: any;
+  let CollectionErc20: any;
+  let ticket: Contract;
+  let userToken: Contract;
+  let owner: Signer;
+  let minter: Signer;
+  let user1: Signer;
+  let user2: Signer;
+  let user3: Signer;
+  let ownerAddr: string;
+  let minterAddr: string;
+  let user1Addr: string;
+  let user2Addr: string;
+  let user3Addr: string;
 
-    describe('OrangeStandSpentTicket', function () {
-        const contractAddress = process.env.CONTRACT_ADDRESS;
-        const testAddress1 = '0xE5C1E03225Af47391E51b79D6D149987cde5B222';
-        const testAddress2 = '0xD336C41f8b1494a7289D39d8De4aADB3792d8515';
-        const testAddress3 = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266';
+  beforeEach(async function () {
+    [owner, minter, user1, user2, user3] = await ethers.getSigners();
+    ownerAddr = await owner.getAddress();
+    minterAddr = await minter.getAddress();
+    user1Addr = await user1.getAddress();
+    user2Addr = await user2.getAddress();
+    user3Addr = await user3.getAddress();
 
-        if (contractAddress) {
-            it('Should connect to external contract', async function () {
-                orangeStandSpentTicket = await ethers.getContractAt('OrangeStandSpentTicket', contractAddress);
-                console.log('Connected to external contract', orangeStandSpentTicket.address);
-            });
-        } else {
-            it('Should deploy OrangeStandSpentTicket', async function () {
-                const OrangeStandSpentTicket = await ethers.getContractFactory('OrangeStandSpentTicket');
-                const CollectionErc20 = await ethers.getContractFactory('CollectionErc20');
-                userContract = await CollectionErc20.deploy("usdTCollection", "USDT");
-                orangeStandSpentTicket = await OrangeStandSpentTicket.deploy(await userContract.getAddress())
-            });
-        }
+    CollectionErc20 = await ethers.getContractFactory("CollectionErc20");
+    userToken = await CollectionErc20.deploy("usdTCollection", "USDT", 6);
+    OrangeStandSpentTicket = await ethers.getContractFactory("OrangeStandSpentTicket");
+    ticket = await OrangeStandSpentTicket.deploy(await userToken.getAddress());
+  });
 
-        describe('mint()', function () {
-            it('Should mint one ticket', async function () {
-                const [owner, addr1] = await ethers.getSigners();
-                var initialBalance = await orangeStandSpentTicket.balanceOf(testAddress1);
-                await orangeStandSpentTicket.addMinter(addr1.address);
-                await orangeStandSpentTicket.connect(addr1).mint(testAddress1, 1);
-                var balanceAfterMint = await orangeStandSpentTicket.balanceOf(testAddress1);
-                expect(initialBalance).to.equal(0);
-                expect(balanceAfterMint).to.equal(1);
-            })
-
-            it('Should mint no tickets', async function () {
-                const [owner, addr1] = await ethers.getSigners();
-                var initialBalance = await orangeStandSpentTicket.balanceOf(testAddress2);
-                await orangeStandSpentTicket.addMinter(addr1.address);
-                await orangeStandSpentTicket.connect(addr1).mint(testAddress2, 0);
-                var balanceAfterMint = await orangeStandSpentTicket.balanceOf(testAddress2);
-                expect(initialBalance).to.equal(0);
-                expect(balanceAfterMint).to.equal(0);
-            })
-        });
-
-        describe('burn()', function () {
-            it('Should burn all tickets', async function () {
-                const [owner] = await ethers.getSigners();
-                const bidPrice = 1;
-                await userContract.mint((await orangeStandSpentTicket.getAddress()), bidPrice);
-                await orangeStandSpentTicket.addMinter(owner.address);
-                await orangeStandSpentTicket.mint(testAddress3, bidPrice);
-                var balanceAfterMint = await orangeStandSpentTicket.balanceOf(testAddress3);
-                await orangeStandSpentTicket.burn(testAddress3, bidPrice);
-                var balanceAfterBurn = await orangeStandSpentTicket.balanceOf(testAddress3);
-                expect(balanceAfterMint).to.equal(bidPrice);
-                expect(balanceAfterBurn).to.equal(0);
-            })
-        });
+  describe("Deployment", function () {
+    it("should set the correct user contract address", async function () {
+      expect(await ticket.decimals()).to.equal(await userToken.decimals());
     });
+
+    it("should have correct name and symbol", async function () {
+      expect(await ticket.name()).to.equal("OrangeStandSpentTicket");
+      expect(await ticket.symbol()).to.equal("OSST");
+    });
+  });
+
+  describe("Roles", function () {
+    it("owner should be able to add minter", async function () {
+      await ticket.addMinter(minterAddr);
+      expect(await ticket.hasRole(await ticket.MINTER_ROLE(), minterAddr)).to.be.true;
+    });
+
+    it("non-owner should not be able to add minter", async function () {
+      await expect(ticket.connect(user1).addMinter(user2Addr)).to.be.revertedWith("Ownable: caller is not the owner");
+    });
+  });
+
+  describe("Minting", function () {
+    beforeEach(async function () {
+      await ticket.addMinter(minterAddr);
+    });
+
+    it("minter can mint tokens", async function () {
+      await ticket.connect(minter).mint(user1Addr, 10);
+      expect(await ticket.balanceOf(user1Addr)).to.equal(10);
+    });
+
+    it("non-minter cannot mint tokens", async function () {
+      await expect(ticket.connect(user1).mint(user2Addr, 5)).to.be.revertedWith("Caller is not a minter");
+    });
+
+    it("minting zero tokens does not change balance", async function () {
+      await ticket.connect(minter).mint(user2Addr, 0);
+      expect(await ticket.balanceOf(user2Addr)).to.equal(0);
+    });
+
+    it("multiple minters can mint", async function () {
+      await ticket.addMinter(user1Addr);
+      await ticket.connect(minter).mint(user2Addr, 3);
+      await ticket.connect(user1).mint(user3Addr, 7);
+      expect(await ticket.balanceOf(user2Addr)).to.equal(3);
+      expect(await ticket.balanceOf(user3Addr)).to.equal(7);
+    });
+  });
+
+  describe("Burning", function () {
+    beforeEach(async function () {
+      await ticket.addMinter(ownerAddr);
+      await userToken.mint(await ticket.getAddress(), 100);
+      await ticket.mint(user1Addr, 10);
+    });
+
+    it("should burn tokens and emit TicketRedeemed", async function () {
+      await expect(ticket.burn(user1Addr, 10))
+        .to.emit(ticket, "TicketRedeemed")
+        .withArgs(user1Addr, 10, await ethers.provider.getBlockNumber() + 1);
+      expect(await ticket.balanceOf(user1Addr)).to.equal(0);
+    });
+
+    it("should transfer userToken to account on burn", async function () {
+      const userTokenBalanceBefore = await userToken.balanceOf(user1Addr);
+      await ticket.burn(user1Addr, 5);
+      const userTokenBalanceAfter = await userToken.balanceOf(user1Addr);
+      expect(userTokenBalanceAfter - userTokenBalanceBefore).to.equal(5);
+    });
+
+    it("should revert if burning more than balance", async function () {
+      await expect(ticket.burn(user1Addr, 20)).to.be.revertedWith("ERC20: burn amount exceeds balance");
+    });
+
+    it("should revert if burning from zero balance", async function () {
+      await expect(ticket.burn(user2Addr, 1)).to.be.revertedWith("ERC20: burn amount exceeds balance");
+    });
+  });
+
+  describe("Decimals", function () {
+    it("should return decimals from user contract", async function () {
+      expect(await ticket.decimals()).to.equal(await userToken.decimals());
+    });
+  });
+
+  describe("Edge Cases", function () {
+    it("should handle minting and burning with zero address", async function () {
+      await ticket.addMinter(ownerAddr);
+      await expect(ticket.burn(ethers.ZeroAddress, 1)).to.be.revertedWith("ERC20: burn from the zero address");
+    });
+
+    it("should revert if minting to zero address with nonzero amount", async function () {
+      await ticket.addMinter(ownerAddr);
+      await expect(ticket.mint(ethers.ZeroAddress, 5)).to.be.revertedWith("ERC20: mint to the zero address");
+    });
+  });
 });
