@@ -1,690 +1,346 @@
-import { ethers, network } from 'hardhat';
-import { use, expect } from 'chai';
-import { Contract } from 'ethers';
+import { ethers } from "hardhat";
+import { expect } from "chai";
+import { Contract } from "ethers";
 const { mine } = require("@nomicfoundation/hardhat-network-helpers");
 
-describe('AuctionTracker tests', function () {
-    let auctionTracker: Contract;
+describe("AuctionTracker", function () {
+  let AuctionTracker: any;
+  let Auction: any;
+  let Item: any;
+  let Bid: any;
+  let ERC20: any;
+  let SimulationToken: any;
+  let OrangeStandTicket: any;
+  let OrangeStandSpentTicket: any;
+  let CollectionErc20: any;
 
-    describe('AuctionTracker', function () {
-        const contractAddress = process.env.CONTRACT_ADDRESS;
-        const itemAddress = '0xE5C1E03225Af47391E51b79D6D149987cde5B222';
-        const originalOwnerAddress = '0xD336C41f8b1494a7289D39d8De4aADB3792d8515';
-        const treasuryAddress = '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266';
-        const settlementToken = '0x198eebe8da4db8a475f9b31c864bf089e550719c';
-        let orangeStandTicket: Contract;
-        let orangeStandSettlementTicket: Contract;
+  let auctionTracker: Contract;
+  let auction: Contract;
+  let item: Contract;
+  let erc20Token: Contract;
+  let simToken: Contract;
+  let userContract: Contract;
+  let orangeStandTicket: Contract;
+  let orangeStandSpentTicket: Contract;
 
-        const auctionId = 3;
-        const auctionStartTime = 29014;
-        const auctionLengthInMinutes = 10;
-        const initialPrice = 16;
-        const priceIncrease = 5;
-        const paymentToken = '0xE5C1E03225Af47391E51b79D6D149987cde5B222';
+  let owner: any;
+  let addr1: any;
+  let addr2: any;
+  let addr3: any;
+  let addr4: any;
+  let treasury: any;
 
-        if (contractAddress) {
-            it('Should connect to external contract', async function () {
-                auctionTracker = await ethers.getContractAt('AuctionTracker', contractAddress);
-                console.log('Connected to external contract', auctionTracker.address);
-            });
-        } else {
-            it('Should deploy AuctionTracker', async function () {
-                const AuctionTracker = await ethers.getContractFactory('AuctionTracker');
-                const OrangeStandTicket = await ethers.getContractFactory('OrangeStandTicket');
-                const OrangeStandSpentTicket = await ethers.getContractFactory('OrangeStandSpentTicket');
-                const CollectionErc20 = await ethers.getContractFactory('CollectionErc20');
-                const userContract = await CollectionErc20.deploy("usdTCollection", "USDT");
-                orangeStandSettlementTicket = await OrangeStandSpentTicket.deploy(await userContract.getAddress());
-                orangeStandTicket = await OrangeStandTicket.deploy(await userContract.getAddress(), await orangeStandSettlementTicket.getAddress());
-                auctionTracker = await AuctionTracker.deploy()
-            });
-        }
+  const auctionId = 1;
+  var auctionStartTime = 10000;
+  const auctionLengthInMinutes = 10;
+  const initialPrice = 16;
+  const priceIncrease = 5;
+  const symbol = "SYM";
+  const symbol2 = "SYM2";
+  let paymentToken: string;
+  let settlementToken: string;
+  let originalOwnerAddress: string;
+  let treasuryAddress: string;
 
-        describe('addAuction()', function(){
-            it('Can only be called by owner', async function(){
-                // ARRANGE
-                const [_, addr1] = await ethers.getSigners();
-                const Auction = await ethers.getContractFactory('Auction');
-                const testAuction = await Auction.deploy(
-                    auctionId, itemAddress, auctionStartTime, auctionLengthInMinutes, 
-                    initialPrice, originalOwnerAddress, priceIncrease, paymentToken, 
-                    treasuryAddress, settlementToken);
-                const testAuctionId = 1;
-                // ACT
-                // ASSERT
-                await expect(auctionTracker.connect(addr1).addActiveAuction(testAuctionId, testAuction)).to.be.reverted;
-            })
-        })
+  beforeEach(async function () {
+    [owner, addr1, addr2, addr3, addr4, treasury] = await ethers.getSigners();
+    originalOwnerAddress = await addr4.getAddress();
+    treasuryAddress = await treasury.getAddress();
 
-        describe('updateOccurrence()', function(){
-            it('Can only be called by owner', async function(){
-                // ARRANGE
-                const [_, addr1] = await ethers.getSigners();
-                // ARRANGE
-                const Auction = await ethers.getContractFactory('Auction');
-                const Item = await ethers.getContractFactory('Item');
-                let item = await Item.deploy();
-                let itemAddressForTest = await item.getAddress();
-                let symbol = "SYM";
-                const ERC20 = await ethers.getContractFactory('ERC20');
-                let erc20Token = await ERC20.deploy("Name", symbol);
-                var tokenNum = 1;
-                await item.addErc20(await erc20Token.getAddress(), tokenNum);
+    CollectionErc20 = await ethers.getContractFactory("CollectionErc20");
+    userContract = await CollectionErc20.deploy("usdTCollection", "USDT", 7);
+    OrangeStandSpentTicket = await ethers.getContractFactory("OrangeStandSpentTicket");
+    orangeStandSpentTicket = await OrangeStandSpentTicket.deploy(await userContract.getAddress());
+    OrangeStandTicket = await ethers.getContractFactory("OrangeStandTicket");
+    orangeStandTicket = await OrangeStandTicket.deploy(await userContract.getAddress(), await orangeStandSpentTicket.getAddress());
+    paymentToken = await orangeStandTicket.getAddress();
+    settlementToken = await orangeStandSpentTicket.getAddress();
 
-                const testAuction = await Auction.deploy(
-                    auctionId, itemAddressForTest, auctionStartTime, auctionLengthInMinutes, 
-                    initialPrice, originalOwnerAddress, priceIncrease, paymentToken, 
-                    treasuryAddress, settlementToken);
-                const testAuctionId = 1;
-                // ACT
-                await auctionTracker.addActiveAuction(testAuctionId, testAuction);
-                // ASSERT
-                await expect(auctionTracker.connect(addr1).updateOccurrence(testAuctionId)).to.be.reverted;
-            })
-        })
+    AuctionTracker = await ethers.getContractFactory("AuctionTracker");
+    Auction = await ethers.getContractFactory("Auction");
+    Item = await ethers.getContractFactory("Item");
+    Bid = await ethers.getContractFactory("Bid");
+    ERC20 = await ethers.getContractFactory("ERC20");
+    SimulationToken = await ethers.getContractFactory("SimulationToken");
 
-            describe('getAuction()', function () {
-                it('Store single auction', async function () {
-                    // ARRANGE
-                    const Auction = await ethers.getContractFactory('Auction');
-                    const Item = await ethers.getContractFactory('Item');
-                    let item = await Item.deploy();
-                    const testAuction = await Auction.deploy(
-                        auctionId, await item.getAddress(), auctionStartTime, auctionLengthInMinutes, 
-                        initialPrice, originalOwnerAddress, priceIncrease, paymentToken, 
-                        treasuryAddress, settlementToken);
-                    const testAuctionId = 1;
-                    // ACT
-                    await auctionTracker.addActiveAuction(testAuctionId, testAuction);
-                    const retrievedAuction = Auction.attach(await auctionTracker.getAuction(testAuctionId));
-                    // ASSERT
-                    expect(await retrievedAuction.getAddress()).to.equal(await testAuction.getAddress());
-                })
+    const blockNum = await ethers.provider.getBlockNumber();
+    const block = await ethers.provider.getBlock(blockNum);
+    auctionStartTime = block?.timestamp;
 
-                it('Last auction for same ID should be returned', async function () {
-                    // ARRANGE
-                    const Auction = await ethers.getContractFactory('Auction');
-                    const Item = await ethers.getContractFactory('Item');
-                    let item = await Item.deploy();
-                    const initialAuction = await Auction.deploy(
-                        auctionId, await item.getAddress(), auctionStartTime, auctionLengthInMinutes, 
-                        initialPrice, originalOwnerAddress, priceIncrease, paymentToken, 
-                        treasuryAddress, settlementToken);
-                    const finalAuction = await Auction.deploy(
-                        auctionId, await item.getAddress(), auctionStartTime, auctionLengthInMinutes, 
-                        initialPrice, originalOwnerAddress, priceIncrease, paymentToken, 
-                        treasuryAddress, settlementToken);
-                    const testAuctionId = 1;
-                    // ACT
-                    await auctionTracker.addActiveAuction(testAuctionId, initialAuction);
-                    await auctionTracker.addActiveAuction(testAuctionId, finalAuction);
-                    const retrievedAuction = Auction.attach(await auctionTracker.getAuction(testAuctionId));
-                    // ASSERT
-                    expect(await retrievedAuction.getAddress()).to.equal(await finalAuction.getAddress());
-                    expect(await retrievedAuction.getAddress()).not.to.equal(await initialAuction.getAddress());
-                })
-            })
+    auctionTracker = await AuctionTracker.deploy();
+    item = await Item.deploy();
+    erc20Token = await CollectionErc20.deploy("Name", symbol, 18);
+    //erc20Token = await ERC20.deploy("Name", symbol);
+    simToken = await SimulationToken.deploy();
+  });
 
-            describe('getTokenOccurrence()', function () {
-                it('Get token occurrence for single entry', async function () {
-                    // ARRANGE
-                    const Auction = await ethers.getContractFactory('Auction');
-                    const Item = await ethers.getContractFactory('Item');
-                    let item = await Item.deploy();
-                    let itemAddressForTest = await item.getAddress();
-                    let symbol = "SYM";
-                    const ERC20 = await ethers.getContractFactory('ERC20');
-                    let erc20Token = await ERC20.deploy("Name", symbol);
-                    var tokenNum = 1;
-                    await item.addErc20(await erc20Token.getAddress(), tokenNum);
+  describe("Access Control", function () {
+    it("addActiveAuction can only be called by owner", async function () {
+      const testAuction = await Auction.deploy(
+        auctionId, item.target, auctionStartTime, auctionLengthInMinutes,
+        initialPrice, originalOwnerAddress, priceIncrease, paymentToken,
+        treasuryAddress, settlementToken
+      );
+      await expect(auctionTracker.connect(addr1).addActiveAuction(auctionId, testAuction)).to.be.reverted;
+    });
 
-                    const testAuction = await Auction.deploy(
-                        auctionId, itemAddressForTest, auctionStartTime, auctionLengthInMinutes, 
-                        initialPrice, originalOwnerAddress, priceIncrease, paymentToken, 
-                        treasuryAddress, settlementToken);
-                    const testAuctionId = 1;
-                    // ACT
-                    await auctionTracker.addActiveAuction(testAuctionId, testAuction);
-                    await auctionTracker.updateOccurrence(testAuctionId);
-                    let occurrences = await auctionTracker.getTokenOccurrence();
-                    // ASSERT
-                    expect(occurrences.length).to.equal(1);
-                    expect(occurrences[0].tokenSymbol).to.equal(symbol);
-                })
+    it("updateOccurrence can only be called by owner", async function () {
+      await item.addErc20(erc20Token.target, 1);
+      const testAuction = await Auction.deploy(
+        auctionId, item.target, auctionStartTime, auctionLengthInMinutes,
+        initialPrice, originalOwnerAddress, priceIncrease, paymentToken,
+        treasuryAddress, settlementToken
+      );
+      await auctionTracker.addActiveAuction(auctionId, testAuction);
+      await expect(auctionTracker.connect(addr1).updateOccurrence(auctionId)).to.be.reverted;
+    });
 
-                it('Get token occurrence for finished auction', async function () {
-                    // ARRANGE
-                    const Auction = await ethers.getContractFactory('Auction');
-                    const Item = await ethers.getContractFactory('Item');
-                    const AuctionTracker = await ethers.getContractFactory('AuctionTracker');
-                    let auctionTracker = await AuctionTracker.deploy();
-                    let item = await Item.deploy();
-                    let itemAddressForTest = await item.getAddress();
-                    let symbol = "SIM";
-                    const SimulationToken = await ethers.getContractFactory('SimulationToken');
-                    var simToken = await SimulationToken.deploy();
-                    var tokenNum = 1;
-                    await item.addErc20(await simToken.getAddress(), tokenNum);
-                    await simToken.mint(await auctionTracker.getAddress(), tokenNum);
-                    await simToken.approve(await auctionTracker.getAddress(), tokenNum);
-                
-                    const testAuction = await Auction.deploy(
-                        auctionId, itemAddressForTest, auctionStartTime, auctionLengthInMinutes, 
-                        initialPrice, originalOwnerAddress, priceIncrease, paymentToken, 
-                        treasuryAddress, settlementToken);
-                    const testAuctionId = 1;
-                    // ACT
-                    await auctionTracker.addActiveAuction(testAuctionId, testAuction);
-                    await auctionTracker.updateOccurrence(testAuctionId);
-                    let occurrencesBeforeAuctionFinish = await auctionTracker.getTokenOccurrence();
-                    await auctionTracker.removeAuction(testAuctionId, item);
-                    let occurrencesAfterAuctionFinish = await auctionTracker.getTokenOccurrence();
-                    // ASSERT
-                    expect(occurrencesBeforeAuctionFinish.length).to.equal(1);
-                    expect(occurrencesAfterAuctionFinish.length).to.equal(1);
-                    expect(occurrencesBeforeAuctionFinish[0].tokenSymbol).to.equal(symbol);
-                    expect(occurrencesAfterAuctionFinish[0].tokenSymbol).to.equal(symbol);
-                    expect(occurrencesAfterAuctionFinish[0].pastUsageMovingAverage).to.lessThan(occurrencesBeforeAuctionFinish[0].pastUsageMovingAverage);
-                })
+    it("generateBid can only be called by owner", async function () {
+      await item.addErc20(erc20Token.target, 1);
+      const testAuction = await Auction.deploy(
+        auctionId, item.target, auctionStartTime, auctionLengthInMinutes,
+        initialPrice, originalOwnerAddress, priceIncrease, paymentToken,
+        treasuryAddress, settlementToken
+      );
+      await auctionTracker.addActiveAuction(auctionId, testAuction);
+      await expect(auctionTracker.connect(addr1).generateBid(auctionId, addr1.address)).to.be.reverted;
+    });
 
-                it('Get multiple token occurrences', async function () {
-                    // ARRANGE
-                    const AuctionTracker = await ethers.getContractFactory('AuctionTracker');
-                    let auctionTracker = await AuctionTracker.deploy()
-                    const Auction = await ethers.getContractFactory('Auction');
-                    const Item = await ethers.getContractFactory('Item');
-                    let item1 = await Item.deploy();
-                    let item2 = await Item.deploy();
-                    let auction1Id = 2;
-                    let auction2Id = 3;
-                    let item1AddressForTest = await item1.getAddress();
-                    let item2AddressForTest = await item2.getAddress();
-                    const SimulationToken = await ethers.getContractFactory('SimulationToken');
-                    var simToken = await SimulationToken.deploy();
-                    let symbol1 = "SIM";
-                    let symbol2 = "ITM2";
-                    const ERC20 = await ethers.getContractFactory('ERC20');
-                    let erc20Token2 = await ERC20.deploy("TKN2", symbol2);
-                    var tokenNum = 1;
-                    await item1.addErc20(await simToken.getAddress(), tokenNum);
-                    await item2.addErc20(await erc20Token2.getAddress(), tokenNum);
-                    await simToken.mint(await auctionTracker.getAddress(), tokenNum);
-                    await simToken.approve(await auctionTracker.getAddress(), tokenNum);
+    it("removeAuction can only be called by owner", async function () {
+      await item.addErc20(erc20Token.target, 1);
+      const testAuction = await Auction.deploy(
+        auctionId, item.target, auctionStartTime, auctionLengthInMinutes,
+        initialPrice, originalOwnerAddress, priceIncrease, paymentToken,
+        treasuryAddress, settlementToken
+      );
+      await auctionTracker.addActiveAuction(auctionId, testAuction);
+      await expect(auctionTracker.connect(addr1).removeAuction(auctionId)).to.be.reverted;
+    });
+  });
 
-                    const testAuction1 = await Auction.deploy(
-                        auction1Id, item1AddressForTest, auctionStartTime, auctionLengthInMinutes, 
-                        initialPrice, originalOwnerAddress, priceIncrease, paymentToken, 
-                        treasuryAddress, settlementToken);
-                    const testAuction2 = await Auction.deploy(
-                        auction2Id, item2AddressForTest, auctionStartTime, auctionLengthInMinutes, 
-                        initialPrice, originalOwnerAddress, priceIncrease, paymentToken, 
-                        treasuryAddress, settlementToken);
-                    // ACT
-                    await auctionTracker.addActiveAuction(auction1Id, testAuction1);
-                    await auctionTracker.addActiveAuction(auction2Id, testAuction2);
-                    await auctionTracker.updateOccurrence(auction1Id);
-                    await auctionTracker.updateOccurrence(auction2Id);
-                    let occurrencesBeforeAuctionFinish = await auctionTracker.getTokenOccurrence();
-                    await auctionTracker.removeAuction(auction1Id, item1);
-                    let occurrencesAfterFirstAuctionFinish = await auctionTracker.getTokenOccurrence();
-                    // ASSERT
-                    expect(occurrencesBeforeAuctionFinish.length).to.equal(2);
-                    expect(occurrencesAfterFirstAuctionFinish.length).to.equal(2);
-                    expect(occurrencesBeforeAuctionFinish[0].tokenSymbol).to.equal(symbol1);
-                    expect(occurrencesBeforeAuctionFinish[1].tokenSymbol).to.equal(symbol2);
-                    expect(occurrencesAfterFirstAuctionFinish[0].tokenSymbol).to.equal(symbol1);
-                    expect(occurrencesAfterFirstAuctionFinish[1].tokenSymbol).to.equal(symbol2);
-                    expect(occurrencesBeforeAuctionFinish[0].pastUsageMovingAverage).to.equal(occurrencesBeforeAuctionFinish[1].pastUsageMovingAverage);
-                    expect(occurrencesAfterFirstAuctionFinish[0].pastUsageMovingAverage).to.lessThan(occurrencesAfterFirstAuctionFinish[1].pastUsageMovingAverage);
-                })
-            })
+  describe("Auction Storage and Retrieval", function () {
+    it("should store and retrieve a single auction", async function () {
+      const testAuction = await Auction.deploy(
+        auctionId, item.target, auctionStartTime, auctionLengthInMinutes,
+        initialPrice, originalOwnerAddress, priceIncrease, paymentToken,
+        treasuryAddress, settlementToken
+      );
+      await auctionTracker.addActiveAuction(auctionId, testAuction);
+      const retrievedAuction = await auctionTracker.getAuction(auctionId);
+      expect(retrievedAuction).to.equal(testAuction.target);
+    });
 
-            describe('getAllActiveAuctions()', function () {
-                it('Get no active auctions', async function () {
-                    const AuctionTracker = await ethers.getContractFactory('AuctionTracker');
-                    let auctionTracker = await AuctionTracker.deploy();
-                    var activeAuctions = await auctionTracker.getAllActiveAuctions("SYM");
-                    expect(activeAuctions.length).to.equal(0);
-                })
+    it("should overwrite auction for same ID", async function () {
+      const testAuction1 = await Auction.deploy(
+        auctionId, item.target, auctionStartTime, auctionLengthInMinutes,
+        initialPrice, originalOwnerAddress, priceIncrease, paymentToken,
+        treasuryAddress, settlementToken
+      );
+      const testAuction2 = await Auction.deploy(
+        auctionId, item.target, auctionStartTime, auctionLengthInMinutes,
+        initialPrice, originalOwnerAddress, priceIncrease, paymentToken,
+        treasuryAddress, settlementToken
+      );
+      await auctionTracker.addActiveAuction(auctionId, testAuction1);
+      await auctionTracker.addActiveAuction(auctionId, testAuction2);
+      const retrievedAuction = await auctionTracker.getAuction(auctionId);
+      expect(retrievedAuction).to.equal(testAuction2.target);
+    });
+  });
 
-                it('Get single active auctions', async function () {
-                    // ARRANGE
-                    const AuctionTracker = await ethers.getContractFactory('AuctionTracker');
-                    let auctionTracker = await AuctionTracker.deploy();
-                    const Auction = await ethers.getContractFactory('Auction');
-                    const Item = await ethers.getContractFactory('Item');
-                    let item = await Item.deploy();
-                    let itemAddressForTest = await item.getAddress();
-                    let symbol = "SYM";
-                    const ERC20 = await ethers.getContractFactory('ERC20');
-                    let erc20Token = await ERC20.deploy("Name", symbol);
-                    var tokenNum = 1;
-                    await item.addErc20(await erc20Token.getAddress(), tokenNum);
+  describe("Token Occurrence Tracking", function () {
+    it("should track token occurrence for single entry", async function () {
+      await item.addErc20(erc20Token.target, 1);
+      const testAuction = await Auction.deploy(
+        auctionId, item.target, auctionStartTime, auctionLengthInMinutes,
+        initialPrice, originalOwnerAddress, priceIncrease, paymentToken,
+        treasuryAddress, settlementToken
+      );
+      await auctionTracker.addActiveAuction(auctionId, testAuction);
+      await auctionTracker.updateOccurrence(auctionId);
+      const occurrences = await auctionTracker.getTokenOccurrence();
+      expect(occurrences.length).to.equal(1);
+      expect(occurrences[0].tokenSymbol).to.equal(symbol);
+    });
 
-                    const testAuctionId = 6;
-                    const testAuction = await Auction.deploy(
-                        testAuctionId, itemAddressForTest, auctionStartTime, auctionLengthInMinutes, 
-                        initialPrice, originalOwnerAddress, priceIncrease, paymentToken, 
-                        treasuryAddress, settlementToken);
-                    
-                    // ACT
-                    await auctionTracker.addActiveAuction(testAuctionId, testAuction);
-                    var activeAuctions = await auctionTracker.getAllActiveAuctions("SYM");
+    it("should update moving average after auction removal", async function () {
+      await item.addErc20(simToken.target, 1);
+      await simToken.mint(auctionTracker.target, 1);
+      await simToken.approve(auctionTracker.target, 1);
+      const testAuction = await Auction.deploy(
+        auctionId, item.target, auctionStartTime, auctionLengthInMinutes,
+        initialPrice, originalOwnerAddress, priceIncrease, paymentToken,
+        treasuryAddress, settlementToken
+      );
+      await auctionTracker.addActiveAuction(auctionId, testAuction);
+      await auctionTracker.updateOccurrence(auctionId);
+      const before = await auctionTracker.getTokenOccurrence();
+      await auctionTracker.removeAuction(auctionId);
+      const after = await auctionTracker.getTokenOccurrence();
+      expect(after.length).to.equal(1);
+      expect(after[0].tokenSymbol).to.equal((await simToken.symbol()));
+      expect(after[0].pastUsageMovingAverage).to.be.lessThan(before[0].pastUsageMovingAverage);
+    });
 
-                    // ASSERT
-                    expect(activeAuctions.length).to.equal(1);
-                    expect(activeAuctions[0]).to.equal(testAuctionId);
-                })
+    it("should track multiple token occurrences", async function () {
+      const item2 = await Item.deploy();
+      const erc20Token2 = await ERC20.deploy("Name2", symbol2);
+      await item.addErc20(erc20Token.target, 1);
+      await item2.addErc20(erc20Token2.target, 1);
+      const testAuction1 = await Auction.deploy(
+        auctionId, item.target, auctionStartTime, auctionLengthInMinutes,
+        initialPrice, originalOwnerAddress, priceIncrease, paymentToken,
+        treasuryAddress, settlementToken
+      );
+      const testAuction2 = await Auction.deploy(
+        auctionId + 1, item2.target, auctionStartTime, auctionLengthInMinutes,
+        initialPrice, originalOwnerAddress, priceIncrease, paymentToken,
+        treasuryAddress, settlementToken
+      );
+      await auctionTracker.addActiveAuction(auctionId, testAuction1);
+      await auctionTracker.addActiveAuction(auctionId + 1, testAuction2);
+      await auctionTracker.updateOccurrence(auctionId);
+      await auctionTracker.updateOccurrence(auctionId + 1);
+      const occurrences = await auctionTracker.getTokenOccurrence();
+      expect(occurrences.length).to.equal(2);
+      expect([symbol, symbol2]).to.include(occurrences[0].tokenSymbol);
+      expect([symbol, symbol2]).to.include(occurrences[1].tokenSymbol);
+    });
+  });
 
-                it('Get multiple active auctions for same symbol', async function () {
-                    // ARRANGE
-                    const AuctionTracker = await ethers.getContractFactory('AuctionTracker');
-                    let auctionTracker = await AuctionTracker.deploy()
-                    const Auction = await ethers.getContractFactory('Auction');
-                    const Item = await ethers.getContractFactory('Item');
-                    let item1 = await Item.deploy();
-                    let item2 = await Item.deploy();
-                    let auction1Id = 2;
-                    let auction2Id = 3;
-                    let item1AddressForTest = await item1.getAddress();
-                    let item2AddressForTest = await item2.getAddress();
-                    let symbol = "ITM1";
-                    const ERC20 = await ethers.getContractFactory('ERC20');
-                    let erc20Token1 = await ERC20.deploy("TKN1", symbol);
-                    let erc20Token2 = await ERC20.deploy("TKN2", symbol);
-                    var tokenNum = 1;
-                    await item1.addErc20(await erc20Token1.getAddress(), tokenNum);
-                    await item2.addErc20(await erc20Token2.getAddress(), tokenNum);
+  describe("Active Auctions and Categories", function () {
+    it("should return no active auctions for unknown symbol", async function () {
+      const active = await auctionTracker.getAllActiveAuctions("NOSYM");
+      expect(active.length).to.equal(0);
+    });
 
-                    const testAuction1 = await Auction.deploy(
-                        auction1Id, item1AddressForTest, auctionStartTime, auctionLengthInMinutes, 
-                        initialPrice, originalOwnerAddress, priceIncrease, paymentToken, 
-                        treasuryAddress, settlementToken);
-                    const testAuction2 = await Auction.deploy(
-                        auction2Id, item2AddressForTest, auctionStartTime, auctionLengthInMinutes, 
-                        initialPrice, originalOwnerAddress, priceIncrease, paymentToken, 
-                        treasuryAddress, settlementToken);
-                    // ACT
-                    await auctionTracker.addActiveAuction(auction1Id, testAuction1);
-                    await auctionTracker.addActiveAuction(auction2Id, testAuction2);
-                    var activeAuctions = await auctionTracker.getAllActiveAuctions(symbol);
+    it("should return active auctions for a symbol", async function () {
+      await item.addErc20(erc20Token.target, 1);
+      const testAuction = await Auction.deploy(
+        auctionId, item.target, auctionStartTime, auctionLengthInMinutes,
+        initialPrice, originalOwnerAddress, priceIncrease, paymentToken,
+        treasuryAddress, settlementToken
+      );
+      await auctionTracker.addActiveAuction(auctionId, testAuction);
+      const active = await auctionTracker.getAllActiveAuctions(symbol);
+      expect(active.length).to.equal(1);
+      expect(active[0]).to.equal(auctionId);
+    });
 
-                    // ASSERT
-                    expect(activeAuctions.length).to.equal(2);
-                    expect(activeAuctions[0]).to.equal(auction1Id);
-                    expect(activeAuctions[1]).to.equal(auction2Id);
-                })
+    it("should return multiple active auctions for same symbol", async function () {
+      const item2 = await Item.deploy();
+      await item.addErc20(erc20Token.target, 1);
+      await item2.addErc20(erc20Token.target, 1);
+      const testAuction1 = await Auction.deploy(
+        auctionId, item.target, auctionStartTime, auctionLengthInMinutes,
+        initialPrice, originalOwnerAddress, priceIncrease, paymentToken,
+        treasuryAddress, settlementToken
+      );
+      const testAuction2 = await Auction.deploy(
+        auctionId + 1, item2.target, auctionStartTime, auctionLengthInMinutes,
+        initialPrice, originalOwnerAddress, priceIncrease, paymentToken,
+        treasuryAddress, settlementToken
+      );
+      await auctionTracker.addActiveAuction(auctionId, testAuction1);
+      await auctionTracker.addActiveAuction(auctionId + 1, testAuction2);
+      const active = await auctionTracker.getAllActiveAuctions(symbol);
+      expect(active.length).to.equal(2);
+      expect(active).to.include(BigInt(auctionId));
+      expect(active).to.include(BigInt(auctionId + 1));
+    });
 
-                it('Get multiple active auctions for different symbol', async function () {
-                    // ARRANGE
-                    const AuctionTracker = await ethers.getContractFactory('AuctionTracker');
-                    let auctionTracker = await AuctionTracker.deploy()
-                    const Auction = await ethers.getContractFactory('Auction');
-                    const Item = await ethers.getContractFactory('Item');
-                    let item1 = await Item.deploy();
-                    let item2 = await Item.deploy();
-                    let auction1Id = 2;
-                    let auction2Id = 3;
-                    let item1AddressForTest = await item1.getAddress();
-                    let item2AddressForTest = await item2.getAddress();
-                    let symbol1 = "ITM1";
-                    let symbol2 = "ITM2";
-                    const ERC20 = await ethers.getContractFactory('ERC20');
-                    let erc20Token1 = await ERC20.deploy("TKN1", symbol1);
-                    let erc20Token2 = await ERC20.deploy("TKN2", symbol2);
-                    var tokenNum = 1;
-                    await item1.addErc20(await erc20Token1.getAddress(), tokenNum);
-                    await item2.addErc20(await erc20Token2.getAddress(), tokenNum);
+    it("should return all categories", async function () {
+      await item.addErc20(erc20Token.target, 1);
+      const testAuction = await Auction.deploy(
+        auctionId, item.target, auctionStartTime, auctionLengthInMinutes,
+        initialPrice, originalOwnerAddress, priceIncrease, paymentToken,
+        treasuryAddress, settlementToken
+      );
+      await auctionTracker.addActiveAuction(auctionId, testAuction);
+      const categories = await auctionTracker.getAllCategories();
+      expect(categories.length).to.equal(1);
+      expect(ethers.decodeBytes32String(categories[0])).to.equal(symbol);
+    });
+  });
 
-                    const testAuction1 = await Auction.deploy(
-                        auction1Id, item1AddressForTest, auctionStartTime, auctionLengthInMinutes, 
-                        initialPrice, originalOwnerAddress, priceIncrease, paymentToken, 
-                        treasuryAddress, settlementToken);
-                    const testAuction2 = await Auction.deploy(
-                        auction2Id, item2AddressForTest, auctionStartTime, auctionLengthInMinutes, 
-                        initialPrice, originalOwnerAddress, priceIncrease, paymentToken, 
-                        treasuryAddress, settlementToken);
-                    // ACT
-                    await auctionTracker.addActiveAuction(auction1Id, testAuction1);
-                    await auctionTracker.addActiveAuction(auction2Id, testAuction2);
-                    var activeAuctionsForFirstSymbol = await auctionTracker.getAllActiveAuctions(symbol1);
-                    var activeAuctionsForSecondSymbol = await auctionTracker.getAllActiveAuctions(symbol2);
+  describe("Auction Transfer Address", function () {
+    it("should return original owner if no bid", async function () {
+      await item.addErc20(erc20Token.target, 1);
+      const testAuction = await Auction.deploy(
+        auctionId, item.target, auctionStartTime, auctionLengthInMinutes,
+        initialPrice, originalOwnerAddress, priceIncrease, paymentToken,
+        treasuryAddress, settlementToken
+      );
+      await auctionTracker.addActiveAuction(auctionId, testAuction);
+      const transferAddr = await auctionTracker.getAuctionTransferAddress(auctionId);
+      expect(transferAddr).to.equal(originalOwnerAddress);
+    });
 
-                    // ASSERT
-                    expect(activeAuctionsForFirstSymbol.length).to.equal(1)
-                    expect(activeAuctionsForSecondSymbol.length).to.equal(1);
-                    expect(activeAuctionsForFirstSymbol[0]).to.equal(auction1Id);
-                    expect(activeAuctionsForSecondSymbol[0]).to.equal(auction2Id);
-                })
-            })
+    it("should return bidder address after bid", async function () {
+      await item.addErc20(erc20Token.target, 1);
+      const testAuction = await Auction.deploy(
+        auctionId, item.target, auctionStartTime, auctionLengthInMinutes,
+        initialPrice, originalOwnerAddress, priceIncrease, paymentToken,
+        treasuryAddress, settlementToken
+      );
+      await auctionTracker.addActiveAuction(auctionId, testAuction);
+      const bid = await Bid.deploy(addr1.address, auctionStartTime + 1, item.target, initialPrice);
 
-            describe('getAllCategories()', function () {
-                it('Get empty list of categories', async function () {
-                    const AuctionTracker = await ethers.getContractFactory('AuctionTracker');
-                    let auctionTracker = await AuctionTracker.deploy();
-                    let retrievedCategories = await auctionTracker.getAllCategories();
-                    expect(retrievedCategories.length).to.equal(0);
-                })
+      await userContract.mint(addr1.address, priceIncrease);
+      await userContract.connect(addr1).approve(await orangeStandTicket.getAddress(), priceIncrease);
+      await orangeStandTicket.mint(addr1.address, priceIncrease);
+      await orangeStandTicket.connect(addr1).approve(await testAuction.getAddress(), priceIncrease);
 
-                it('Get single category', async function () {
-                    // ARRANGE
-                    const AuctionTracker = await ethers.getContractFactory('AuctionTracker');
-                    let auctionTracker = await AuctionTracker.deploy();
-                    const Auction = await ethers.getContractFactory('Auction');
-                    const Item = await ethers.getContractFactory('Item');
-                    let item = await Item.deploy();
-                    let itemAddressForTest = await item.getAddress();
-                    let symbol = "SYM";
-                    const ERC20 = await ethers.getContractFactory('ERC20');
-                    let erc20Token = await ERC20.deploy("Name", symbol);
-                    var tokenNum = 1;
-                    await item.addErc20(await erc20Token.getAddress(), tokenNum);
+      await testAuction.makeNewBid(bid.target);
+      await auctionTracker.updateActiveAuctionsForUser(auctionId, addr1.address, originalOwnerAddress, testAuction);
+      const transferAddr = await auctionTracker.getAuctionTransferAddress(auctionId);
+      expect(transferAddr).to.equal(addr1.address);
+    });
+  });
 
-                    const testAuction = await Auction.deploy(
-                        auctionId, itemAddressForTest, auctionStartTime, auctionLengthInMinutes, 
-                        initialPrice, originalOwnerAddress, priceIncrease, paymentToken, 
-                        treasuryAddress, settlementToken);
-                    const testAuctionId = 1;
-                    // ACT
-                    await auctionTracker.addActiveAuction(testAuctionId, testAuction);
-                    let retrievedCategories = await auctionTracker.getAllCategories();
-                    // ASSERT
-                    expect(retrievedCategories.length).to.equal(1);
-                    expect(ethers.decodeBytes32String(retrievedCategories[0])).to.equal(symbol);
-                })
+  describe("User Auction Tracking", function () {
+    it("should update user trackers on bidder change", async function () {
+      await item.addErc20(erc20Token.target, 1);
+      const testAuction = await Auction.deploy(
+        auctionId, item.target, auctionStartTime, auctionLengthInMinutes,
+        initialPrice, originalOwnerAddress, priceIncrease, paymentToken,
+        treasuryAddress, settlementToken
+      );
+      await auctionTracker.addActiveAuction(auctionId, testAuction);
+      const bid1 = await Bid.deploy(addr1.address, auctionStartTime + 1, item.target, initialPrice);
+      await userContract.mint(addr1.address, priceIncrease);
+      await userContract.connect(addr1).approve(await orangeStandTicket.getAddress(), priceIncrease);
+      await orangeStandTicket.mint(addr1.address, priceIncrease);
+      await orangeStandTicket.connect(addr1).approve(await testAuction.getAddress(), priceIncrease);
+      await testAuction.makeNewBid(bid1.target);
+      await auctionTracker.updateActiveAuctionsForUser(auctionId, addr1.address, originalOwnerAddress, testAuction);
+      const bid2 = await Bid.deploy(addr2.address, auctionStartTime + 2, item.target, initialPrice + 1);
+      await userContract.mint(addr2.address, priceIncrease);
+      await userContract.connect(addr2).approve(await orangeStandTicket.getAddress(), priceIncrease);
+      await orangeStandTicket.mint(addr2.address, priceIncrease);
+      await orangeStandTicket.connect(addr2).approve(await testAuction.getAddress(), priceIncrease);
+      await testAuction.makeNewBid(bid2.target);
+      await auctionTracker.updateActiveAuctionsForUser(auctionId, addr2.address, addr1.address, testAuction);
 
-                it('Get multiple categories', async function () {
-                    // ARRANGE
-                    const AuctionTracker = await ethers.getContractFactory('AuctionTracker');
-                    let auctionTracker = await AuctionTracker.deploy()
-                    const Auction = await ethers.getContractFactory('Auction');
-                    const Item = await ethers.getContractFactory('Item');
-                    let item1 = await Item.deploy();
-                    let item2 = await Item.deploy();
-                    let auction1Id = 2;
-                    let auction2Id = 3;
-                    let item1AddressForTest = await item1.getAddress();
-                    let item2AddressForTest = await item2.getAddress();
-                    let symbol1 = "ITM1";
-                    let symbol2 = "ITM2";
-                    const ERC20 = await ethers.getContractFactory('ERC20');
-                    let erc20Token1 = await ERC20.deploy("TKN1", symbol1);
-                    let erc20Token2 = await ERC20.deploy("TKN2", symbol2);
-                    var tokenNum = 1;
-                    await item1.addErc20(await erc20Token1.getAddress(), tokenNum);
-                    await item2.addErc20(await erc20Token2.getAddress(), tokenNum);
+      const finishedAuctionsAddr1 = await auctionTracker.getAllFinishedAuctions(symbol, addr1.address);
+      const finishedAuctionsAddr2 = await auctionTracker.getAllFinishedAuctions(symbol, addr2.address);
+      expect(finishedAuctionsAddr1.length).to.equal(0);
+      expect(finishedAuctionsAddr2.length).to.equal(1);
+      expect(finishedAuctionsAddr2[0]).to.equal(auctionId);
+    });
 
-                    const testAuction1 = await Auction.deploy(
-                        auction1Id, item1AddressForTest, auctionStartTime, auctionLengthInMinutes, 
-                        initialPrice, originalOwnerAddress, priceIncrease, paymentToken, 
-                        treasuryAddress, settlementToken);
-                    const testAuction2 = await Auction.deploy(
-                        auction2Id, item2AddressForTest, auctionStartTime, auctionLengthInMinutes, 
-                        initialPrice, originalOwnerAddress, priceIncrease, paymentToken, 
-                        treasuryAddress, settlementToken);
-                    // ACT
-                    await auctionTracker.addActiveAuction(auction1Id, testAuction1);
-                    await auctionTracker.addActiveAuction(auction2Id, testAuction2);
-                    let retrievedCategories = await auctionTracker.getAllCategories();
-                    // ASSERT
-                    expect(retrievedCategories.length).to.equal(2);
-                    expect(ethers.decodeBytes32String(retrievedCategories[0])).to.equal(symbol1);
-                    expect(ethers.decodeBytes32String(retrievedCategories[1])).to.equal(symbol2);
-                })
-            })
-
-            describe('generateBid()', function () {
-                it('Generate a single bid', async function () {
-                    // ARRANGE
-                    const [owner, addr1] = await ethers.getSigners();
-                    let sampleBidder = addr1;
-                    const AuctionTracker = await ethers.getContractFactory('AuctionTracker');
-                    let auctionTracker = await AuctionTracker.deploy();
-                    const OrangeStandTicket = await ethers.getContractFactory("OrangeStandTicket");
-                    const OrangeStandSpentTicket = await ethers.getContractFactory('OrangeStandSpentTicket');
-                    const CollectionErc20 = await ethers.getContractFactory('CollectionErc20');
-                    const userContract = await CollectionErc20.deploy("usdTCollection", "USDT");
-                    const orangeStandSpentTicket = await OrangeStandSpentTicket.deploy(await userContract.getAddress());
-                    const orangeStandTicket = await OrangeStandTicket.deploy(await userContract.getAddress(), await orangeStandSpentTicket.getAddress());
-                    await userContract.mint(sampleBidder, priceIncrease);
-                    await userContract.connect(sampleBidder).approve(await orangeStandTicket.getAddress(), priceIncrease);
-                    await orangeStandTicket.mint(sampleBidder, priceIncrease);
-                    const Auction = await ethers.getContractFactory('Auction');
-                    const Item = await ethers.getContractFactory('Item');
-                    const Bid = await ethers.getContractFactory('Bid');
-                    let item = await Item.deploy();
-                    let itemAddressForTest = await item.getAddress();
-                    let symbol = "SYM";
-                    const ERC20 = await ethers.getContractFactory('ERC20');
-                    let erc20Token = await ERC20.deploy("Name", symbol);
-                    var tokenNum = 1;
-                    await item.addErc20(await erc20Token.getAddress(), tokenNum);
-
-                    const testAuctionId = 8;
-                    const testAuction = await Auction.deploy(
-                        testAuctionId, itemAddressForTest, (await ethers.provider.getBlock(await ethers.provider.getBlockNumber())).timestamp, 
-                        auctionLengthInMinutes, initialPrice, originalOwnerAddress, priceIncrease, (await orangeStandTicket.getAddress()), 
-                        treasuryAddress, settlementToken);
-                    await orangeStandTicket.connect(sampleBidder).approve((await testAuction.getAddress()), priceIncrease);
-                    
-                    // ACT
-                    await auctionTracker.addActiveAuction(testAuctionId, testAuction);
-                    let initialActiveAuction = Auction.attach(await auctionTracker.getAuction(testAuctionId));
-                    let initialActiveBidAddress = await initialActiveAuction.getActiveBid();
-                    await auctionTracker.generateBid(testAuctionId, sampleBidder);
-                    let activeAuctionAfterBidding = Auction.attach(await auctionTracker.getAuction(testAuctionId));
-                    let activeBidAfterBidding = Bid.attach(await activeAuctionAfterBidding.getActiveBid());
-                    let activeBidder = await activeBidAfterBidding.getBidderAddress();
-                    // ASSERT
-                    expect(initialActiveBidAddress).to.equal('0x0000000000000000000000000000000000000000');
-                    expect(activeBidder).to.equal(sampleBidder.address);
-                })
-
-                it('Generate multiple bids', async function () {
-                    // ARRANGE
-                    const [owner, addr1, addr2] = await ethers.getSigners();
-                    let sampleBidder = addr1;
-                    let secondSampleBidder = addr2;
-                    const AuctionTracker = await ethers.getContractFactory('AuctionTracker');
-                    let auctionTracker = await AuctionTracker.deploy();
-                    const OrangeStandTicket = await ethers.getContractFactory("OrangeStandTicket");
-                    const OrangeStandSpentTicket = await ethers.getContractFactory('OrangeStandSpentTicket');
-                    const CollectionErc20 = await ethers.getContractFactory('CollectionErc20');
-                    const userContract = await CollectionErc20.deploy("usdTCollection", "USDT");
-                    const orangeStandSpentTicket = await OrangeStandSpentTicket.deploy(await userContract.getAddress());
-                    const orangeStandTicket = await OrangeStandTicket.deploy(await userContract.getAddress(), await orangeStandSpentTicket.getAddress());
-                    await userContract.mint(sampleBidder, priceIncrease);
-                    await userContract.connect(sampleBidder).approve(await orangeStandTicket.getAddress(), priceIncrease);
-                    await userContract.mint(secondSampleBidder, priceIncrease);
-                    await userContract.connect(secondSampleBidder).approve(await orangeStandTicket.getAddress(), priceIncrease);
-                    await orangeStandTicket.mint(sampleBidder, priceIncrease);
-                    await orangeStandTicket.mint(secondSampleBidder, priceIncrease);
-                    const Auction = await ethers.getContractFactory('Auction');
-                    const Item = await ethers.getContractFactory('Item');
-                    const Bid = await ethers.getContractFactory('Bid');
-                    let item = await Item.deploy();
-                    let itemAddressForTest = await item.getAddress();
-                    let symbol = "SYM";
-                    const ERC20 = await ethers.getContractFactory('ERC20');
-                    let erc20Token = await ERC20.deploy("Name", symbol);
-                    var tokenNum = 1;
-                    await item.addErc20(await erc20Token.getAddress(), tokenNum);
-
-                    const testAuctionId = 9;
-                    const testAuction = await Auction.deploy(
-                        testAuctionId, itemAddressForTest, (await ethers.provider.getBlock(await ethers.provider.getBlockNumber())).timestamp, 
-                        auctionLengthInMinutes, initialPrice, originalOwnerAddress, priceIncrease, (await orangeStandTicket.getAddress()),
-                        treasuryAddress, settlementToken);
-
-                    await orangeStandTicket.connect(sampleBidder).approve((await testAuction.getAddress()), priceIncrease);
-                    await orangeStandTicket.connect(secondSampleBidder).approve((await testAuction.getAddress()), priceIncrease);
-                    // ACT
-                    await auctionTracker.addActiveAuction(testAuctionId, testAuction);
-                    let initialActiveAuction = Auction.attach(await auctionTracker.getAuction(testAuctionId));
-                    let initialActiveBidAddress = await initialActiveAuction.getActiveBid();
-                    await auctionTracker.generateBid(testAuctionId, sampleBidder);
-                    let activeAuctionAfterFirstBidding = Auction.attach(await auctionTracker.getAuction(testAuctionId));
-                    let activeBidAfterFirstBidding = Bid.attach(await activeAuctionAfterFirstBidding.getActiveBid());
-                    let firstActiveBidder = await activeBidAfterFirstBidding.getBidderAddress();
-                    await auctionTracker.generateBid(testAuctionId, secondSampleBidder);
-                    let activeAuctionAfterSecondBidding = Auction.attach(await auctionTracker.getAuction(testAuctionId));
-                    let activeBidAfterSecondBidding = Bid.attach(await activeAuctionAfterSecondBidding.getActiveBid());
-                    let secondActiveBidder = await activeBidAfterSecondBidding.getBidderAddress();
-                    // ASSERT
-                    expect(initialActiveBidAddress).to.equal('0x0000000000000000000000000000000000000000');
-                    expect(firstActiveBidder).to.equal(sampleBidder.address);
-                    expect(secondActiveBidder).to.equal(secondSampleBidder.address);
-                })
-
-                it('Can only be called by owner', async function(){
-                    // ARRANGE
-                    const [owner, addr1, nonOwnerCaller] = await ethers.getSigners();
-                    let sampleBidder = addr1;
-                    const AuctionTracker = await ethers.getContractFactory('AuctionTracker');
-                    let auctionTracker = await AuctionTracker.deploy();
-                    const OrangeStandTicket = await ethers.getContractFactory("OrangeStandTicket");
-                    const OrangeStandSpentTicket = await ethers.getContractFactory('OrangeStandSpentTicket');
-                    const CollectionErc20 = await ethers.getContractFactory('CollectionErc20');
-                    const userContract = await CollectionErc20.deploy("usdTCollection", "USDT");
-                    const orangeStandSpentTicket = await OrangeStandSpentTicket.deploy(await userContract.getAddress());
-                    const orangeStandTicket = await OrangeStandTicket.deploy(await userContract.getAddress(), await orangeStandSpentTicket.getAddress());
-                    await userContract.mint(sampleBidder, priceIncrease);
-                    await userContract.connect(sampleBidder).approve(await orangeStandTicket.getAddress(), priceIncrease);
-                    await orangeStandTicket.mint(sampleBidder, priceIncrease);
-                    const Auction = await ethers.getContractFactory('Auction');
-                    const Item = await ethers.getContractFactory('Item');
-                    let item = await Item.deploy();
-                    let itemAddressForTest = await item.getAddress();
-                    let symbol = "SYM";
-                    const ERC20 = await ethers.getContractFactory('ERC20');
-                    let erc20Token = await ERC20.deploy("Name", symbol);
-                    var tokenNum = 1;
-                    await item.addErc20(await erc20Token.getAddress(), tokenNum);
-
-                    const testAuctionId = 8;
-                    const testAuction = await Auction.deploy(
-                        testAuctionId, itemAddressForTest, (await ethers.provider.getBlock(await ethers.provider.getBlockNumber())).timestamp, 
-                        auctionLengthInMinutes, initialPrice, originalOwnerAddress, priceIncrease, (await orangeStandTicket.getAddress()), 
-                        treasuryAddress, settlementToken);
-                    await orangeStandTicket.connect(sampleBidder).approve((await testAuction.getAddress()), priceIncrease);
-                    
-                    // ACT
-                    await auctionTracker.addActiveAuction(testAuctionId, testAuction);
-                    await expect(auctionTracker.connect(nonOwnerCaller).generateBid(testAuctionId, sampleBidder)).to.be.reverted;
-                })
-            })
-
-            describe('getAuctionTransferAddress()', function () {
-                it('Retrieve auction transfer address', async function () {
-                    // ARRANGE
-                    const [owner, addr1] = await ethers.getSigners();
-                    let sampleBidder = addr1;
-                    const AuctionTracker = await ethers.getContractFactory('AuctionTracker');
-                    let auctionTracker = await AuctionTracker.deploy();
-                    const OrangeStandTicket = await ethers.getContractFactory("OrangeStandTicket");
-                    const OrangeStandSpentTicket = await ethers.getContractFactory('OrangeStandSpentTicket');
-                    const CollectionErc20 = await ethers.getContractFactory('CollectionErc20');
-                    const userContract = await CollectionErc20.deploy("usdTCollection", "USDT");
-                    const orangeStandSpentTicket = await OrangeStandSpentTicket.deploy(await userContract.getAddress());
-                    const orangeStandTicket = await OrangeStandTicket.deploy(await userContract.getAddress(), await orangeStandSpentTicket.getAddress());
-                    await userContract.mint(sampleBidder, priceIncrease);
-                    await userContract.connect(sampleBidder).approve(await orangeStandTicket.getAddress(), priceIncrease);
-                    await orangeStandTicket.mint(sampleBidder, priceIncrease);
-                    const Auction = await ethers.getContractFactory('Auction');
-                    const Item = await ethers.getContractFactory('Item');
-                    const Bid = await ethers.getContractFactory('Bid');
-                    let item = await Item.deploy();
-                    let itemAddressForTest = await item.getAddress();
-                    let symbol = "SYM";
-                    const ERC20 = await ethers.getContractFactory('ERC20');
-                    let erc20Token = await ERC20.deploy("Name", symbol);
-                    var tokenNum = 1;
-                    await item.addErc20(await erc20Token.getAddress(), tokenNum);
-
-                    const testAuctionId = 12;
-                    const testAuction = await Auction.deploy(
-                        testAuctionId, itemAddressForTest, (await ethers.provider.getBlock(await ethers.provider.getBlockNumber())).timestamp, 
-                        auctionLengthInMinutes, initialPrice, originalOwnerAddress, priceIncrease, (await orangeStandTicket.getAddress()), 
-                        treasuryAddress, settlementToken);
-
-                    await orangeStandTicket.connect(sampleBidder).approve((await testAuction.getAddress()), priceIncrease);
-                    
-                    // ACT
-                    await auctionTracker.addActiveAuction(testAuctionId, testAuction);
-                    let initialBidderAddress = await auctionTracker.getAuctionTransferAddress(testAuctionId);
-                    await auctionTracker.generateBid(testAuctionId, sampleBidder);
-                    let retrievedBidderAddress = await auctionTracker.getAuctionTransferAddress(testAuctionId);
-                    // ASSERT
-                    expect(initialBidderAddress).to.equal(originalOwnerAddress);
-                    expect(retrievedBidderAddress).to.equal(sampleBidder.address);
-                })
-            })
-        
-        describe('addToActiveAuction()', function () {
-            it('Can only be called by owner', async function(){
-                // ARRANGE
-                const [_, addr1, nonOwnerCaller] = await ethers.getSigners();
-                let sampleBidder = addr1;
-                const AuctionTracker = await ethers.getContractFactory('AuctionTracker');
-                let auctionTracker = await AuctionTracker.deploy();
-                const OrangeStandTicket = await ethers.getContractFactory("OrangeStandTicket");
-                const OrangeStandSpentTicket = await ethers.getContractFactory('OrangeStandSpentTicket');
-                const CollectionErc20 = await ethers.getContractFactory('CollectionErc20');
-                const userContract = await CollectionErc20.deploy("usdTCollection", "USDT");
-                const orangeStandSpentTicket = await OrangeStandSpentTicket.deploy(await userContract.getAddress());
-                const orangeStandTicket = await OrangeStandTicket.deploy(await userContract.getAddress(), await orangeStandSpentTicket.getAddress());
-                await userContract.mint(sampleBidder, priceIncrease);
-                await userContract.connect(sampleBidder).approve(await orangeStandTicket.getAddress(), priceIncrease);
-                await orangeStandTicket.mint(sampleBidder, priceIncrease);
-                const Auction = await ethers.getContractFactory('Auction');
-                const Item = await ethers.getContractFactory('Item');
-                const Bid = await ethers.getContractFactory('Bid');
-                let item = await Item.deploy();
-                let itemAddressForTest = await item.getAddress();
-                let symbol = "SYM";
-                const ERC20 = await ethers.getContractFactory('ERC20');
-                let erc20Token = await ERC20.deploy("Name", symbol);
-                var tokenNum = 1;
-                await item.addErc20(await erc20Token.getAddress(), tokenNum);
-
-                const testAuctionId = 12;
-                const testAuction = await Auction.deploy(
-                    testAuctionId, itemAddressForTest, (await ethers.provider.getBlock(await ethers.provider.getBlockNumber())).timestamp, 
-                    auctionLengthInMinutes, initialPrice, originalOwnerAddress, priceIncrease, (await orangeStandTicket.getAddress()), 
-                    treasuryAddress, settlementToken);
-
-                await orangeStandTicket.connect(sampleBidder).approve((await testAuction.getAddress()), priceIncrease);
-                
-                // ACT
-                await expect(auctionTracker.connect(nonOwnerCaller).addActiveAuction(testAuctionId, testAuction)).to.be.reverted;
-            })
-        })
-
-        describe('removeAuction()', function () {
-            it('Can only be called by owner', async function(){
-                // ARRANGE
-                const [_, nonOwnerCaller] = await ethers.getSigners();
-                // ARRANGE
-                const Auction = await ethers.getContractFactory('Auction');
-                const Item = await ethers.getContractFactory('Item');
-                let item = await Item.deploy();
-                let itemAddressForTest = await item.getAddress();
-                let symbol = "SYM";
-                const ERC20 = await ethers.getContractFactory('ERC20');
-                let erc20Token = await ERC20.deploy("Name", symbol);
-                var tokenNum = 1;
-                await item.addErc20(await erc20Token.getAddress(), tokenNum);
-
-                const testAuction = await Auction.deploy(
-                    auctionId, itemAddressForTest, auctionStartTime, auctionLengthInMinutes, 
-                    initialPrice, originalOwnerAddress, priceIncrease, paymentToken, 
-                    treasuryAddress, settlementToken);
-                const testAuctionId = 1;
-                // ACT
-                await auctionTracker.addActiveAuction(testAuctionId, testAuction);
-                await auctionTracker.updateOccurrence(testAuctionId);
-                await expect(auctionTracker.connect(nonOwnerCaller).removeAuction(testAuctionId, item)).to.be.reverted;
-            })
-        })
-    })
-})
+    it("should remove auction from all trackers on removal", async function () {
+      await item.addErc20(erc20Token.target, 1);
+      await erc20Token.mint(auctionTracker.target, 1);
+      const testAuction = await Auction.deploy(
+        auctionId, item.target, auctionStartTime, auctionLengthInMinutes,
+        initialPrice, originalOwnerAddress, priceIncrease, paymentToken,
+        treasuryAddress, settlementToken
+      );
+      await auctionTracker.addActiveAuction(auctionId, testAuction);
+      await auctionTracker.removeAuction(auctionId);
+      const active = await auctionTracker.getAllActiveAuctions(symbol);
+      expect(active.length).to.equal(0);
+    });
+  });
+});
